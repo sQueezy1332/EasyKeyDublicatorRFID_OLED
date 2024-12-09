@@ -15,6 +15,8 @@ const boolean _use_hw = true;
 OLED _OLED;
 extern uint8_t SmallFont[];
 extern uint8_t BigNumbers[];
+key_type keyType;
+myMode Mode = md_empty;
 //uint32_t stTimer;
 
 DualFunctionButton BtnOK(BtnOKPin, 2000, INPUT_PULLUP);
