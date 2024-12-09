@@ -63,7 +63,12 @@ void OLED_printKey(const byte(&buf)[8], bool keyIndex = false) {
 	}
 	_OLED.clrScr(); _OLED.print(str, 0, 0);
 	str = "";
-	for (byte i = 0;;) { str += String(buf[i], HEX); if (++i < 8)str += ':'; else break; }
+	for (byte i = 0;;) { str += String(buf[i], HEX); if (++i < 8)str += ':'; else break; }  // это ключ формата dallas
+	//keyType = keyDallas;
+		if ((buf[0] == 1) && ibutton.crc8(buf, 7) != buf[7]) {
+			str += "\n !CRC";
+		}
+	DEBUGLN(str);
 	_OLED.print(str, 0, 12);
 	str = "Type ";
 	switch (keyType) {
@@ -73,6 +78,7 @@ void OLED_printKey(const byte(&buf)[8], bool keyIndex = false) {
 	case keyEM_Marine: str += "EM_Marine"; break;
 	case keyUnknown: str += "Unknown"; break;
 	}
+	DEBUGLN(str);
 	_OLED.print(str, 0, 24);
 	_OLED.update();
 }
