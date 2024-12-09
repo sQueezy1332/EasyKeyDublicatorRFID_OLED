@@ -24,18 +24,18 @@ DualFunctionButton BtnDown(BtnDownPin, 2000, INPUT_PULLUP);
 
 //Encoder enc1(CLK, DT, BtnPin);
 
-//OneWireSlave iBtnEmul(iBtnEmulPin);  //Эмулятор iButton для BlueMode
-const byte MAX_KEYS = EEPROM.length() / 8 - 1;                   // максимальное кол-во ключей, которое влазит в EEPROM, но не > 20
-byte EEPROM_key_count;               // количество ключей 0..MAX_KEYS, хранящихся в EEPROM
-byte EEPROM_key_index = 0;           // 1..EEPROM_key_count номер последнего записанного в EEPROM ключа
-byte addr[8];                        // временный буфер
-byte keyID[8];                       // ID ключа для записи
-byte halfT;                          // полупериод для метаком
+//OneWireSlave iBtnEmul(iBtnEmulPin);  //Р­РјСѓР»СЏС‚РѕСЂ iButton РґР»СЏ BlueMode
+const byte MAX_KEYS = EEPROM.length() / 8 - 1;                   // РјР°РєСЃРёРјР°Р»СЊРЅРѕРµ РєРѕР»-РІРѕ РєР»СЋС‡РµР№, РєРѕС‚РѕСЂРѕРµ РІР»Р°Р·РёС‚ РІ EEPROM, РЅРѕ РЅРµ > 20
+byte EEPROM_key_count;               // РєРѕР»РёС‡РµСЃС‚РІРѕ РєР»СЋС‡РµР№ 0..MAX_KEYS, С…СЂР°РЅСЏС‰РёС…СЃСЏ РІ EEPROM
+byte EEPROM_key_index = 0;           // 1..EEPROM_key_count РЅРѕРјРµСЂ РїРѕСЃР»РµРґРЅРµРіРѕ Р·Р°РїРёСЃР°РЅРЅРѕРіРѕ РІ EEPROM РєР»СЋС‡Р°
+byte addr[8];                        // РІСЂРµРјРµРЅРЅС‹Р№ Р±СѓС„РµСЂ
+byte keyID[8];                       // ID РєР»СЋС‡Р° РґР»СЏ Р·Р°РїРёСЃРё
+byte halfT;                          // РїРѕР»СѓРїРµСЂРёРѕРґ РґР»СЏ РјРµС‚Р°РєРѕРј
 byte rom[8]{ 0x1, 0xBE, 0x40, 0x11, 0x5A, 0x36, 0x0, 0xE1 };
 
-byte indxKeyInROM(byte buf[]) {  //возвращает индекс или ноль если нет в ROM
+byte indxKeyInROM(byte buf[]) {  //РІРѕР·РІСЂР°С‰Р°РµС‚ РёРЅРґРµРєСЃ РёР»Рё РЅРѕР»СЊ РµСЃР»Рё РЅРµС‚ РІ ROM
 	uint16_t idx = 0;
-	for (byte count = 1, i = 0; count <= EEPROM_key_count; count++, i = 0, idx += 8) {  // ищем ключ в eeprom.
+	for (byte count = 1, i = 0; count <= EEPROM_key_count; count++, i = 0, idx += 8) {  // РёС‰РµРј РєР»СЋС‡ РІ eeprom.
 		do {
 			if (EEPROM[idx + i] != buf[i]) break;
 		} while (++i < 8);
@@ -45,7 +45,7 @@ byte indxKeyInROM(byte buf[]) {  //возвращает индекс или ноль если нет в ROM
 }
 
 key_type getKeyType(byte* buf) {
-	if (buf[0] == 0x01) return keyDallas;  // это ключ формата dallas
+	if (buf[0] == 0x01) return keyDallas;  // СЌС‚Рѕ РєР»СЋС‡ С„РѕСЂРјР°С‚Р° dallas
 	switch (buf[0] >> 4) {
 	case 1: return keyCyfral;
 	case 2: return keyMetacom;
@@ -93,7 +93,7 @@ void OLED_print(String st, byte err = 0) {
 }
 
 bool EPPROM_AddKey(byte buf[]) {
-	auto indx = indxKeyInROM(buf);  // ищем ключ в eeprom. Если находим, то не делаем запись, а индекс переводим в него
+	auto indx = indxKeyInROM(buf);  // РёС‰РµРј РєР»СЋС‡ РІ eeprom. Р•СЃР»Рё РЅР°С…РѕРґРёРј, С‚Рѕ РЅРµ РґРµР»Р°РµРј Р·Р°РїРёСЃСЊ, Р° РёРЅРґРµРєСЃ РїРµСЂРµРІРѕРґРёРј РІ РЅРµРіРѕ
 	if (indx != 0) {
 		EEPROM_key_index = indx;
 		EEPROM.update(EEPROM_KEY_INDEX, EEPROM_key_index);
