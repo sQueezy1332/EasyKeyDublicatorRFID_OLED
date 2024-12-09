@@ -10,26 +10,26 @@
 #define DEBUGLN(x)
 #endif
 //settings
-#define rfidUsePWD 0    // ключ использует пароль для изменения
-#define rfidPWD 123456  // пароль для ключа
-#define rfidBitRate 2   // Скорость обмена с rfid в kbps
+#define rfidUsePWD 0    // РєР»СЋС‡ РёСЃРїРѕР»СЊР·СѓРµС‚ РїР°СЂРѕР»СЊ РґР»СЏ РёР·РјРµРЅРµРЅРёСЏ
+#define rfidPWD 123456  // РїР°СЂРѕР»СЊ РґР»СЏ РєР»СЋС‡Р°
+#define rfidBitRate 2   // РЎРєРѕСЂРѕСЃС‚СЊ РѕР±РјРµРЅР° СЃ rfid РІ kbps
 #define COMPARATOR (ACSR & _BV(ACO))
 #define TIMER2MASK (_BV(COM2A0) | _BV(COM2B1) | _BV(WGM21) | _BV(WGM20))
 //pins
-#define iButtonPin PIN_A3   // Линия data ibutton
-//#define iBtnEmulPin A1  // Линия эмулятора ibutton
-#define Luse_Led 13     // Светодиод лузы
+#define iButtonPin PIN_A3   // Р›РёРЅРёСЏ data ibutton
+//#define iBtnEmulPin A1  // Р›РёРЅРёСЏ СЌРјСѓР»СЏС‚РѕСЂР° ibutton
+#define Luse_Led 13     // РЎРІРµС‚РѕРґРёРѕРґ Р»СѓР·С‹
 #define R_Led 2         // RGB Led
 #define G_Led 3
 #define B_Led 4
-#define ACpin 6        // Вход Ain0 аналогового компаратора 0.1В для EM-Marie
-#define speakerPin 12  // Спикер, он же buzzer, он же beeper
-#define FreqGen 11     // генератор 125 кГц
-//#define CLK 8          // s1 энкодера
-//#define DT 9           // s2 энкодера
-#define BtnUpPin 8    // Кнопка вверх
-#define BtnDownPin 9  // Кнопка вниз
-#define BtnOKPin 10      // Кнопка переключения режима чтение/запись
+#define ACpin 6        // Р’С…РѕРґ Ain0 Р°РЅР°Р»РѕРіРѕРІРѕРіРѕ РєРѕРјРїР°СЂР°С‚РѕСЂР° 0.1Р’ РґР»СЏ EM-Marie
+#define speakerPin 12  // РЎРїРёРєРµСЂ, РѕРЅ Р¶Рµ buzzer, РѕРЅ Р¶Рµ beeper
+#define FreqGen 11     // РіРµРЅРµСЂР°С‚РѕСЂ 125 РєР“С†
+//#define CLK 8          // s1 СЌРЅРєРѕРґРµСЂР°
+//#define DT 9           // s2 СЌРЅРєРѕРґРµСЂР°
+#define BtnUpPin 8    // РљРЅРѕРїРєР° РІРІРµСЂС…
+#define BtnDownPin 9  // РљРЅРѕРїРєР° РІРЅРёР·
+#define BtnOKPin 10      // РљРЅРѕРїРєР° РїРµСЂРµРєР»СЋС‡РµРЅРёСЏ СЂРµР¶РёРјР° С‡С‚РµРЅРёРµ/Р·Р°РїРёСЃСЊ
 #define EEPROM_KEY_COUNT (E2END)
 #define EEPROM_KEY_INDEX (E2END - 1)
 
@@ -39,14 +39,14 @@ enum key_type : uint8_t {
 	keyCyfral,
 	keyMetacom,
 	keyEM_Marine
-};  // тип оригинального ключа
+};  // С‚РёРї РѕСЂРёРіРёРЅР°Р»СЊРЅРѕРіРѕ РєР»СЋС‡Р°
 
 enum myMode : uint8_t {
 	md_empty,
 	md_read,
 	md_write,
 	md_blueMode
-};  // режим работы копировальщика
+};  // СЂРµР¶РёРј СЂР°Р±РѕС‚С‹ РєРѕРїРёСЂРѕРІР°Р»СЊС‰РёРєР°
 
 enum emRWType : uint8_t {
 	Unknown,
@@ -56,7 +56,7 @@ enum emRWType : uint8_t {
 	TM01,
 	T5557,
 	EM4305
-};  // тип болванки
+};  // С‚РёРї Р±РѕР»РІР°РЅРєРё
 
 key_type keyType;
 myMode Mode = md_empty;
