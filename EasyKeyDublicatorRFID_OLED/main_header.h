@@ -30,10 +30,10 @@ byte EEPROM_key_count;               // количество ключей 0..MAX
 byte EEPROM_key_index = 0;           // 1..EEPROM_key_count номер последнего записанного в EEPROM ключа
 byte addr[8];                        // временный буфер
 byte keyID[8];                       // ID ключа для записи
-byte halfT;                          // полупериод для метаком
+//byte halfT;                          // полупериод для метаком
 byte rom[8]{ 0x1, 0xBE, 0x40, 0x11, 0x5A, 0x36, 0x0, 0xE1 };
 
-byte indxKeyInROM(byte buf[]) {  //возвращает индекс или ноль если нет в ROM
+byte indxKeyInROM(const byte(&buf)[8]) {  //возвращает индекс или ноль если нет в ROM
 	uint16_t idx = 0;
 	for (byte count = 1, i = 0; count <= EEPROM_key_count; count++, i = 0, idx += 8) {  // ищем ключ в eeprom.
 		do {
@@ -44,7 +44,7 @@ byte indxKeyInROM(byte buf[]) {  //возвращает индекс или но
 	return 0;
 }
 
-key_type getKeyType(byte* buf) {
+key_type getKeyType(const byte(&buf)[8]) {
 	if (buf[0] == 0x01) return keyDallas;  // это ключ формата dallas
 	switch (buf[0] >> 4) {
 	case 1: return keyCyfral;
@@ -53,14 +53,13 @@ key_type getKeyType(byte* buf) {
 	}
 }
 
-void OLED_printKey(byte buf[8], bool msgType = false) {
+void OLED_printKey(const byte(&buf)[8], bool keyIndex = false) {
 	String str;
-	if (!msgType) {
+	if (!keyIndex) {
 		str += "The key "; str += EEPROM_key_index; str += " of "; str += EEPROM_key_count; str += " in ROM";
 	} else {
 		auto index = indxKeyInROM(buf);
-		if (index != 0) { str += "The key exists in ROM: "; str += index; } 
-		else { str += "Hold the Btn to save"; }
+		if (index != 0) { str += "The key exists in ROM: "; str += index; } else { str += "Hold the Btn to save"; }
 	}
 	_OLED.clrScr(); _OLED.print(str, 0, 0);
 	str = "";
@@ -68,31 +67,45 @@ void OLED_printKey(byte buf[8], bool msgType = false) {
 	_OLED.print(str, 0, 12);
 	str = "Type ";
 	switch (keyType) {
-	case keyDallas: str += "Dallas wire"; break;
-	case keyCyfral: str += "Cyfral wire"; break;
-	case keyMetacom: str += "Metakom wire"; break;
-	case keyEM_Marine: str += "EM_Marine rfid"; break;
+	case keyDallas: str += "Dallas"; break;
+	case keyCyfral: str += "Cyfral"; break;
+	case keyMetacom: str += "Metakom"; break;
+	case keyEM_Marine: str += "EM_Marine"; break;
 	case keyUnknown: str += "Unknown"; break;
 	}
 	_OLED.print(str, 0, 24);
 	_OLED.update();
 }
 
-void OLED_print(String st, byte err = 0) {
-	// digitalWrite(R_Led, LOW);
-	DEBUGLN(st);
-	_OLED.clrScr();
-	if (err) _OLED.print(F("Error = "), 0, 0);
-	else _OLED.print(F("OK"), 0, 0);
-	st += err;
-	_OLED.print(st, 0, 12);
+void OLEDprint_error(byte err = 0) {
+	//digitalWrite(R_Led, LOW);
+	String str;
+	_OLED.clrScr(); //,
+	switch (err) {
+	case NOERROR: str = F("Success"); break;
+	case KEY_SAVED: str = F("Key saved"); break;
+	default: 
+	{ str = F("ERROR_"); 
+		switch (err) {
+			case ERROR_COPY: str += F("COPY");  break;
+			case ERROR_UNKNOWN_KEY: str += F("UNKNOWN"); str += F("_KEY"); break;
+			case ERROR_SAME_KEY: str += F("SAME"); str += F("_KEY"); break;
+			case ERROR_RFID_TIMEOUT: str += F("RFID_TIMEOUT"); break;
+			case ERROR_RFID_READ_TIMEOT: str += F("RFID_READ_TIMEOT"); break;
+			case ERROR_RFID_PARITY: str += F("RFID_PARITY"); break;
+		}
+		str += "\t= "; str += err;
+	}
+	}
+	DEBUGLN(str);
+	_OLED.print(str, 0, 12);
 	_OLED.update();
 	//if (err) {Sd_ErrorBeep();}
 	//else { Sd_ReadOK(); }
 	//digitalWrite(R_Led, HIGH);
 }
 
-bool EPPROM_AddKey(byte buf[]) {
+bool EPPROM_AddKey(const byte(&buf)[8]) {
 	auto indx = indxKeyInROM(buf);  // ищем ключ в eeprom. Если находим, то не делаем запись, а индекс переводим в него
 	if (indx != 0) {
 		EEPROM_key_index = indx;
@@ -109,10 +122,10 @@ bool EPPROM_AddKey(byte buf[]) {
 	return true;
 }
 
-void EEPROM_get_key() {
+void EEPROM_get_key(byte(&buf)[8]) {
 	if (EEPROM_key_index > MAX_KEYS) return;
-	EEPROM.get((EEPROM_key_index - 1) * 8, keyID);
-	keyType = getKeyType(keyID);
+	EEPROM.get((EEPROM_key_index - 1) * 8, buf);
+	keyType = getKeyType(buf);
 }
 
 
