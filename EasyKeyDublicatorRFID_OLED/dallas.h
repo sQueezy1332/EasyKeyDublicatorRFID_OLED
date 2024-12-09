@@ -4,79 +4,79 @@ OneWire ibutton;
 const uint8_t pin_onewire = iButtonPin;
 
 emRWType getRWtype() {	
-	// TM01 это неизвестный тип болванки, делается попытка записи TM-01 без финализации для dallas или c финализацией под cyfral или metacom
-	// RW1990_1 - dallas-совместимые RW-1990, RW-1990.1, ТМ-08, ТМ-08v2
-	// RW1990_2 - dallas-совместимая RW-1990.2
-	// TM2004 - dallas-совместимая TM2004 в доп. памятью 1кб
-	// пробуем определить RW-1990.1
+	// TM01 СЌС‚Рѕ РЅРµРёР·РІРµСЃС‚РЅС‹Р№ С‚РёРї Р±РѕР»РІР°РЅРєРё, РґРµР»Р°РµС‚СЃСЏ РїРѕРїС‹С‚РєР° Р·Р°РїРёСЃРё TM-01 Р±РµР· С„РёРЅР°Р»РёР·Р°С†РёРё РґР»СЏ dallas РёР»Рё c С„РёРЅР°Р»РёР·Р°С†РёРµР№ РїРѕРґ cyfral РёР»Рё metacom
+	// RW1990_1 - dallas-СЃРѕРІРјРµСЃС‚РёРјС‹Рµ RW-1990, RW-1990.1, РўРњ-08, РўРњ-08v2
+	// RW1990_2 - dallas-СЃРѕРІРјРµСЃС‚РёРјР°СЏ RW-1990.2
+	// TM2004 - dallas-СЃРѕРІРјРµСЃС‚РёРјР°СЏ TM2004 РІ РґРѕРї. РїР°РјСЏС‚СЊСЋ 1РєР±
+	// РїСЂРѕР±СѓРµРј РѕРїСЂРµРґРµР»РёС‚СЊ RW-1990.1
 	byte answer;
 	ibutton.reset();
-	ibutton.write(0xD1);   // проуем снять флаг записи для RW-1990.1
-	ibutton.write_bit(1);  // записываем значение флага записи = 1 - отключаем запись
+	ibutton.write(0xD1);   // РїСЂРѕСѓРµРј СЃРЅСЏС‚СЊ С„Р»Р°Рі Р·Р°РїРёСЃРё РґР»СЏ RW-1990.1
+	ibutton.write_bit(1);  // Р·Р°РїРёСЃС‹РІР°РµРј Р·РЅР°С‡РµРЅРёРµ С„Р»Р°РіР° Р·Р°РїРёСЃРё = 1 - РѕС‚РєР»СЋС‡Р°РµРј Р·Р°РїРёСЃСЊ
 	delay(10);
 	pinMode(iButtonPin, INPUT);
 	ibutton.reset();
-	ibutton.write(0xB5);  // send 0xB5 - запрос на чтение флага записи
+	ibutton.write(0xB5);  // send 0xB5 - Р·Р°РїСЂРѕСЃ РЅР° С‡С‚РµРЅРёРµ С„Р»Р°РіР° Р·Р°РїРёСЃРё
 	answer = ibutton.read();
 	//DEBUG(F("\n Answer RW-1990.1: ")); DEBUGLN(answer, HEX);
 	if (answer == 0xFE) {
 		DEBUGLN(F("Type: dallas ")); DEBUGLN(F("RW-1990")); DEBUGLN(F(".1"));
-		return RW1990_1;  // это RW-1990.1
+		return RW1990_1;  // СЌС‚Рѕ RW-1990.1
 	}
-	// пробуем определить RW-1990.2
+	// РїСЂРѕР±СѓРµРј РѕРїСЂРµРґРµР»РёС‚СЊ RW-1990.2
 	ibutton.reset();
-	ibutton.write(0x1D);   // пробуем установить флаг записи для RW-1990.2
-	ibutton.write_bit(1);  // записываем значение флага записи = 1 - включаем запись
+	ibutton.write(0x1D);   // РїСЂРѕР±СѓРµРј СѓСЃС‚Р°РЅРѕРІРёС‚СЊ С„Р»Р°Рі Р·Р°РїРёСЃРё РґР»СЏ RW-1990.2
+	ibutton.write_bit(1);  // Р·Р°РїРёСЃС‹РІР°РµРј Р·РЅР°С‡РµРЅРёРµ С„Р»Р°РіР° Р·Р°РїРёСЃРё = 1 - РІРєР»СЋС‡Р°РµРј Р·Р°РїРёСЃСЊ
 	delay(10);
 	pinMode(iButtonPin, INPUT);
 	ibutton.reset();
-	ibutton.write(0x1E);  // send 0x1E - запрос на чтение флага записи
+	ibutton.write(0x1E);  // send 0x1E - Р·Р°РїСЂРѕСЃ РЅР° С‡С‚РµРЅРёРµ С„Р»Р°РіР° Р·Р°РїРёСЃРё
 	answer = ibutton.read();
 	if (answer == 0xFE) {
 		ibutton.reset();
-		ibutton.write(0x1D);   // возвращаем оратно запрет записи для RW-1990.2
-		ibutton.write_bit(0);  // записываем значение флага записи = 0 - выключаем запись
+		ibutton.write(0x1D);   // РІРѕР·РІСЂР°С‰Р°РµРј РѕСЂР°С‚РЅРѕ Р·Р°РїСЂРµС‚ Р·Р°РїРёСЃРё РґР»СЏ RW-1990.2
+		ibutton.write_bit(0);  // Р·Р°РїРёСЃС‹РІР°РµРј Р·РЅР°С‡РµРЅРёРµ С„Р»Р°РіР° Р·Р°РїРёСЃРё = 0 - РІС‹РєР»СЋС‡Р°РµРј Р·Р°РїРёСЃСЊ
 		delay(10);
 		pinMode(iButtonPin, INPUT);
 		DEBUGLN(F("Type: dallas ")); DEBUGLN(F("RW-1990")); DEBUGLN(F(".2"));
-		return RW1990_2;  // это RW-1990.2
+		return RW1990_2;  // СЌС‚Рѕ RW-1990.2
 	}
-	// пробуем определить TM-2004
+	// РїСЂРѕР±СѓРµРј РѕРїСЂРµРґРµР»РёС‚СЊ TM-2004
 	ibutton.reset();
-	ibutton.write(0x33);                          // посылаем команду чтения ROM для перевода в расширенный 3-х байтовый режим
-	for (byte i = 0; i < 8; i++) ibutton.read();  // читаем данные ключа
-	ibutton.write(0xAA);                          // пробуем прочитать регистр статуса для TM-2004
+	ibutton.write(0x33);                          // РїРѕСЃС‹Р»Р°РµРј РєРѕРјР°РЅРґСѓ С‡С‚РµРЅРёСЏ ROM РґР»СЏ РїРµСЂРµРІРѕРґР° РІ СЂР°СЃС€РёСЂРµРЅРЅС‹Р№ 3-С… Р±Р°Р№С‚РѕРІС‹Р№ СЂРµР¶РёРј
+	for (byte i = 0; i < 8; i++) ibutton.read();  // С‡РёС‚Р°РµРј РґР°РЅРЅС‹Рµ РєР»СЋС‡Р°
+	ibutton.write(0xAA);                          // РїСЂРѕР±СѓРµРј РїСЂРѕС‡РёС‚Р°С‚СЊ СЂРµРіРёСЃС‚СЂ СЃС‚Р°С‚СѓСЃР° РґР»СЏ TM-2004
 	ibutton.write(0x00);
-	ibutton.write(0x00);					// передаем адрес для считывания       
-	if (0x9C == ibutton.read()) {			// читаем CRC комманды и адреса
-		answer = ibutton.read();			// читаем регистр статуса
+	ibutton.write(0x00);					// РїРµСЂРµРґР°РµРј Р°РґСЂРµСЃ РґР»СЏ СЃС‡РёС‚С‹РІР°РЅРёСЏ       
+	if (0x9C == ibutton.read()) {			// С‡РёС‚Р°РµРј CRC РєРѕРјРјР°РЅРґС‹ Рё Р°РґСЂРµСЃР°
+		answer = ibutton.read();			// С‡РёС‚Р°РµРј СЂРµРіРёСЃС‚СЂ СЃС‚Р°С‚СѓСЃР°
 		DEBUG(F(" status: ")); DEBUGHEX(answer); DEBUGLN(F("Type: dallas ")); DEBUGLN(F("TM2004"));
 		ibutton.reset();
-		return TM2004;  // это Type: TM2004
+		return TM2004;  // СЌС‚Рѕ Type: TM2004
 	}
 	ibutton.reset();
 	DEBUGLN(F("Type: dallas ")); DEBUGLN(F("unknown, trying TM-01! "));
-	return TM01;  // это неизвестный тип DS1990, нужно перебирать алгоритмы записи (TM-01)
+	return TM01;  // СЌС‚Рѕ РЅРµРёР·РІРµСЃС‚РЅС‹Р№ С‚РёРї DS1990, РЅСѓР¶РЅРѕ РїРµСЂРµР±РёСЂР°С‚СЊ Р°Р»РіРѕСЂРёС‚РјС‹ Р·Р°РїРёСЃРё (TM-01)
 }
 
-bool writeTM2004(const byte(&data)[8]) {  // функция записи на TM2004
+bool writeTM2004(const byte(&data)[8]) {  // С„СѓРЅРєС†РёСЏ Р·Р°РїРёСЃРё РЅР° TM2004
 	ibutton.reset();
-	ibutton.write(0x3C);  // команда записи ROM для TM-2004
+	ibutton.write(0x3C);  // РєРѕРјР°РЅРґР° Р·Р°РїРёСЃРё ROM РґР»СЏ TM-2004
 	ibutton.write(0x00);
-	ibutton.write(0x00);  // передаем адрес с которого начинается запись
+	ibutton.write(0x00);  // РїРµСЂРµРґР°РµРј Р°РґСЂРµСЃ СЃ РєРѕС‚РѕСЂРѕРіРѕ РЅР°С‡РёРЅР°РµС‚СЃСЏ Р·Р°РїРёСЃСЊ
 	for (byte i = 0, red = digitalRead(R_Led); i < 8; i++) {
 		digitalWrite(R_Led, red = !red);
 		ibutton.write(data[i]);
-		//if (0x65 != ibutton.read()) { return false; }     // crc не верный
+		//if (0x65 != ibutton.read()) { return false; }     // crc РЅРµ РІРµСЂРЅС‹Р№
 		delayMicroseconds(600);
 		ibutton.write_bit(1);
-		delay(50);  // испульс записи
+		delay(50);  // РёСЃРїСѓР»СЊСЃ Р·Р°РїРёСЃРё
 		pinMode(iButtonPin, INPUT);
 		DEBUG('*');//Sd_WriteStep();
 		if (data[i] != ibutton.read()) { 
 			ibutton.reset();
 			return false;
-		}  //читаем записанный байт и сравниваем, с тем что должно записаться
+		}  //С‡РёС‚Р°РµРј Р·Р°РїРёСЃР°РЅРЅС‹Р№ Р±Р°Р№С‚ Рё СЃСЂР°РІРЅРёРІР°РµРј, СЃ С‚РµРј С‡С‚Рѕ РґРѕР»Р¶РЅРѕ Р·Р°РїРёСЃР°С‚СЊСЃСЏ
 	}
 	//ibutton.reset();
 	return true;
@@ -104,7 +104,7 @@ bool dataIsBurningOK(byte bitCnt, const byte(&data)[8], byte(&buf)[8]) {
 	if (bitCnt == 36) convert_MC(buf);
 	for (byte i = 0;;) {
 		DEBUGHEX(buf[i]);
-		if (data[i] != buf[i]) return false;  // сравниваем код для записи с тем, что уже записано в ключе.
+		if (data[i] != buf[i]) return false;  // СЃСЂР°РІРЅРёРІР°РµРј РєРѕРґ РґР»СЏ Р·Р°РїРёСЃРё СЃ С‚РµРј, С‡С‚Рѕ СѓР¶Рµ Р·Р°РїРёСЃР°РЅРѕ РІ РєР»СЋС‡Рµ.
 		if (++i < 8)DEBUG(':'); else break;
 	}
 	return true;
@@ -113,7 +113,7 @@ bool dataIsBurningOK(byte bitCnt, const byte(&data)[8], byte(&buf)[8]) {
 void BurnByte(byte data) {
 	for (byte bitmask = 0; bitmask; bitmask >>= 1) {
 		ibutton.write_bit(data & bitmask);
-		delay(5);          // даем время на прошивку каждого бита до 10 мс
+		delay(5);          // РґР°РµРј РІСЂРµРјСЏ РЅР° РїСЂРѕС€РёРІРєСѓ РєР°Р¶РґРѕРіРѕ Р±РёС‚Р° РґРѕ 10 РјСЃ
 	}
 	pinMode(iButtonPin, INPUT);
 }
@@ -121,13 +121,13 @@ void BurnByte(byte data) {
 void BurnByteMC(const byte(&data)[8]) {
 	for (byte n_bit = 0, bitmask = 128; n_bit < 36; n_bit++) {
 		ibutton.write_bit(!((data[n_bit >> 3]) & bitmask));
-		delay(5);  // даем время на прошивку каждого бита 5 мс
+		delay(5);  // РґР°РµРј РІСЂРµРјСЏ РЅР° РїСЂРѕС€РёРІРєСѓ РєР°Р¶РґРѕРіРѕ Р±РёС‚Р° 5 РјСЃ
 		if ((bitmask >>= 1) == 0) bitmask = 128;
 	}
 	pinMode(iButtonPin, INPUT);
 }
 
-bool writeRW1990_1_2_TM01(const byte(&data)[8], byte(&buf)[8], emRWType rwType) {  // функция записи на RW1990.1, RW1990.2, TM-01C(F)
+bool writeRW1990_1_2_TM01(const byte(&data)[8], byte(&buf)[8], emRWType rwType) {  // С„СѓРЅРєС†РёСЏ Р·Р°РїРёСЃРё РЅР° RW1990.1, RW1990.2, TM-01C(F)
 	byte rwCmd, bitCnt = 64, rwFlag = 1;
 	switch (rwType) {
 	case TM01:
@@ -136,41 +136,41 @@ bool writeRW1990_1_2_TM01(const byte(&data)[8], byte(&buf)[8], emRWType rwType) 
 		break;  //TM-01C(F)
 	case RW1990_1:
 		rwCmd = 0xD1;
-		rwFlag = 0;	// RW1990.1  флаг записи инвертирован
+		rwFlag = 0;	// RW1990.1  С„Р»Р°Рі Р·Р°РїРёСЃРё РёРЅРІРµСЂС‚РёСЂРѕРІР°РЅ
 		break;                             
 	case RW1990_2: 
 		rwCmd = 0x1D; 
 		break;  // RW1990.2
 	}
 	ibutton.reset();
-	ibutton.write(rwCmd);       // send 0xD1 - флаг записи
-	ibutton.write_bit(rwFlag);  // записываем значение флага записи = 1 - разрешить запись
+	ibutton.write(rwCmd);       // send 0xD1 - С„Р»Р°Рі Р·Р°РїРёСЃРё
+	ibutton.write_bit(rwFlag);  // Р·Р°РїРёСЃС‹РІР°РµРј Р·РЅР°С‡РµРЅРёРµ С„Р»Р°РіР° Р·Р°РїРёСЃРё = 1 - СЂР°Р·СЂРµС€РёС‚СЊ Р·Р°РїРёСЃСЊ
 	delay(5);
 	ibutton.reset();
 	if (rwType == TM01) ibutton.write(0xC5);
-	else ibutton.write(0xD5);  // команда на запись
+	else ibutton.write(0xD5);  // РєРѕРјР°РЅРґР° РЅР° Р·Р°РїРёСЃСЊ
 	if (bitCnt != 36) {
 		const byte iMax = (bitCnt >> 3);
 		for (byte i = 0, flag = digitalRead(R_Led); i < iMax; i++) {
 			digitalWrite(R_Led, flag = !flag);
-			if (rwType == RW1990_1) BurnByte(data[i] ^ 0xFF);  // запись происходит инверсно для RW1990.1
+			if (rwType == RW1990_1) BurnByte(data[i] ^ 0xFF);  // Р·Р°РїРёСЃСЊ РїСЂРѕРёСЃС…РѕРґРёС‚ РёРЅРІРµСЂСЃРЅРѕ РґР»СЏ RW1990.1
 			else BurnByte(data[i]);
 			DEBUG('*');
 			//Sd_WriteStep();
 		}
-		ibutton.write(rwCmd);        // send 0xD1 - флаг записи
-		ibutton.write_bit(!rwFlag);  // записываем значение флага записи = 1 - отключаем запись
+		ibutton.write(rwCmd);        // send 0xD1 - С„Р»Р°Рі Р·Р°РїРёСЃРё
+		ibutton.write_bit(!rwFlag);  // Р·Р°РїРёСЃС‹РІР°РµРј Р·РЅР°С‡РµРЅРёРµ С„Р»Р°РіР° Р·Р°РїРёСЃРё = 1 - РѕС‚РєР»СЋС‡Р°РµРј Р·Р°РїРёСЃСЊ
 		delay(5);
 	}
 	else BurnByteMC(data);
-	if (!dataIsBurningOK(bitCnt, data, buf)) {  // проверяем корректность записи
+	if (!dataIsBurningOK(bitCnt, data, buf)) {  // РїСЂРѕРІРµСЂСЏРµРј РєРѕСЂСЂРµРєС‚РЅРѕСЃС‚СЊ Р·Р°РїРёСЃРё
 		return false;
 	}
-	if (keyType > keyDallas) {  //переводим ключ из формата dallas
+	if (keyType > keyDallas) {  //РїРµСЂРµРІРѕРґРёРј РєР»СЋС‡ РёР· С„РѕСЂРјР°С‚Р° dallas
 		ibutton.reset();
-		if (keyType == keyCyfral) ibutton.write(0xCA);  // send 0xCA - флаг финализации Cyfral
-		else ibutton.write(0xCB);                       // send 0xCB - флаг финализации metacom
-		ibutton.write_bit(1);                           // записываем значение флага финализации = 1 - перевеcти формат
+		if (keyType == keyCyfral) ibutton.write(0xCA);  // send 0xCA - С„Р»Р°Рі С„РёРЅР°Р»РёР·Р°С†РёРё Cyfral
+		else ibutton.write(0xCB);                       // send 0xCB - С„Р»Р°Рі С„РёРЅР°Р»РёР·Р°С†РёРё metacom
+		ibutton.write_bit(1);                           // Р·Р°РїРёСЃС‹РІР°РµРј Р·РЅР°С‡РµРЅРёРµ С„Р»Р°РіР° С„РёРЅР°Р»РёР·Р°С†РёРё = 1 - РїРµСЂРµРІРµcС‚Рё С„РѕСЂРјР°С‚
 	}
 	return true;
 }
@@ -182,10 +182,10 @@ bool searchIbutton(byte(&data)[8], byte (&buf)[8]) {
 	}
 	for (byte i = 0;;) {
 		DEBUGHEX(buf[i]);
-		data[i] = buf[i];  // копируем прочтенный код в ReadID
+		data[i] = buf[i];  // РєРѕРїРёСЂСѓРµРј РїСЂРѕС‡С‚РµРЅРЅС‹Р№ РєРѕРґ РІ ReadID
 		if (++i < 8) DEBUG(':'); else break;
 	}
-	if (buf[0] == 0x01) {  // это ключ формата dallas
+	if (buf[0] == 0x01) {  // СЌС‚Рѕ РєР»СЋС‡ С„РѕСЂРјР°С‚Р° dallas
 		keyType = keyDallas;
 		if (OneWire::crc8(buf, 7) != buf[7]) {
 			DEBUGLN(F("CRC is not valid!"));
@@ -201,26 +201,26 @@ bool searchIbutton(byte(&data)[8], byte (&buf)[8]) {
 	return true;
 }
 
-byte write_ibutton(byte(&data)[8], byte(&buf)[8]) {  //это ожидание ключа для записи!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	if (!ibutton.search(buf)) {  //комментим ифку со скобками и получаем принудительную перезапись далласов
+byte write_ibutton(byte(&data)[8], byte(&buf)[8]) {  //СЌС‚Рѕ РѕР¶РёРґР°РЅРёРµ РєР»СЋС‡Р° РґР»СЏ Р·Р°РїРёСЃРё!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	if (!ibutton.search(buf)) {  //РєРѕРјРјРµРЅС‚РёРј РёС„РєСѓ СЃРѕ СЃРєРѕР±РєР°РјРё Рё РїРѕР»СѓС‡Р°РµРј РїСЂРёРЅСѓРґРёС‚РµР»СЊРЅСѓСЋ РїРµСЂРµР·Р°РїРёСЃСЊ РґР°Р»Р»Р°СЃРѕРІ
 		ibutton.reset_search();
 		return false;
 	}
 	DEBUG(F("The new key code is: "));
 	for (byte i = 0;;) {
 		DEBUGHEX(buf[i]);
-		if (data[i] != buf[i]) break; // сравниваем код для записи с тем, что уже записано в ключе.
+		if (data[i] != buf[i]) break; // СЃСЂР°РІРЅРёРІР°РµРј РєРѕРґ РґР»СЏ Р·Р°РїРёСЃРё СЃ С‚РµРј, С‡С‚Рѕ СѓР¶Рµ Р·Р°РїРёСЃР°РЅРѕ РІ РєР»СЋС‡Рµ.
 		if (++i < 8) DEBUG(':');
-		else return 1;// если коды совпадают, ничего писать не нужно
+		else return 1;// РµСЃР»Рё РєРѕРґС‹ СЃРѕРІРїР°РґР°СЋС‚, РЅРёС‡РµРіРѕ РїРёСЃР°С‚СЊ РЅРµ РЅСѓР¶РЅРѕ
 	}
-	auto type = getRWtype();  // определяем тип RW-1990.1 или 1990.2 или TM-01
+	auto type = getRWtype();  // РѕРїСЂРµРґРµР»СЏРµРј С‚РёРї RW-1990.1 РёР»Рё 1990.2 РёР»Рё TM-01
 	DEBUG(F("\n Burning iButton ID: "));
 	if (type == TM2004) {
-		if (writeTM2004(data)) {//шьем TM2004
+		if (writeTM2004(data)) {//С€СЊРµРј TM2004
 			return 0;
 		} 
 	} else {
-		if (writeRW1990_1_2_TM01(data, buf, type)) {//пробуем прошить другие форматы
+		if (writeRW1990_1_2_TM01(data, buf, type)) {//РїСЂРѕР±СѓРµРј РїСЂРѕС€РёС‚СЊ РґСЂСѓРіРёРµ С„РѕСЂРјР°С‚С‹
 			return 0;
 		} else return 1;
 	}
