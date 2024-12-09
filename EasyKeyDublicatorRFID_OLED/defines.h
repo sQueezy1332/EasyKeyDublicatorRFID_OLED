@@ -57,7 +57,8 @@ enum emRWType : uint8_t {
 	T5557,
 	EM4305
 };  // тип болванки
-
+key_type keyType;
+myMode Mode = md_empty;
 
 //keyID[0] = 0xFF; keyID[1] = 0xA9; keyID[2] =  0x8A; keyID[3] = 0xA4; keyID[4] = 0x87; keyID[5] = 0x78; keyID[6] = 0x98; keyID[7] = 0x6A;//это чей-то рабочий код RFID. тут можно
 		  //подменять каждое число. копир, при прикладывании ключа, будет выдавать эти числа и их можно записать в память. для RFID надо вычислять код
