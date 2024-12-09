@@ -6,34 +6,34 @@ uint32_t pulseACompA(bool pulse, byte Average = 80, uint32_t timeOut = 1500) {  
 		ADCSRA |= (1 << ADSC);
 		while (ADCSRA & (1 << ADSC));  // Wait until the ADSC bit has been cleared
 		if (ADCH > 200) return 0;
-		if (ADCH > Average) AcompState = HIGH;  // ÷èòàåì ôëàã êîìïàðàòîðà
+		if (ADCH > Average) AcompState = HIGH;  // читаем флаг компаратора
 		else AcompState = LOW;
 		if (AcompState == pulse) {
 			tEnd = micros() + timeOut;
 			do {
 				ADCSRA |= (1 << ADSC);
 				while (ADCSRA & (1 << ADSC));	// Wait until the ADSC bit has been cleared
-				if (ADCH > Average) AcompState = HIGH;  // ÷èòàåì ôëàã êîìïàðàòîðà
+				if (ADCH > Average) AcompState = HIGH;  // читаем флаг компаратора
 				else AcompState = LOW;
 				if (AcompState != pulse) return (uint32_t)(micros() + timeOut - tEnd);
 			} while (micros() < tEnd);
-			return 0;  //òàéìàóò, èìïóëüñ íå âåðíóñÿ îðàòíî
+			return 0;  //таймаут, импульс не вернуся оратно
 		}            // end if
 	} while (micros() < tEnd);
 	return 0;
 }
 
 void ADCsetOn() {
-	ADMUX = (ADMUX & 0b11110000) | 0b0011 | (1 << ADLAR);                // (1 << REFS0);          // ïîäêëþ÷àåì ê AC Ëèíèþ A3 ,  ëåâîå âûðàâíèå, èçìåðåíèå äî Vcc
-	ADCSRB = (ADCSRB & 0b11111000) | (1 << ACME);                        // èñòî÷íèê ïåðåçàïóñêà ADC FreeRun, âêëþ÷àåì ìóëüòèïëåêñîð AC
-	ADCSRA = (ADCSRA & 0b11111000) | 0b011 | (1 << ADEN) | (1 << ADSC);  // | (1<<ADATE);      // 0b011 äåëèòåëü ñêîðîñòè ADC, // âêëþ÷àåì ADC è çàïóñêàåì ADC è autotriger ADC
+	ADMUX = (ADMUX & 0b11110000) | 0b0011 | (1 << ADLAR);                // (1 << REFS0);          // подключаем к AC Линию A3 ,  левое выравние, измерение до Vcc
+	ADCSRB = (ADCSRB & 0b11111000) | (1 << ACME);                        // источник перезапуска ADC FreeRun, включаем мультиплексор AC
+	ADCSRA = (ADCSRA & 0b11111000) | 0b011 | (1 << ADEN) | (1 << ADSC);  // | (1<<ADATE);      // 0b011 делитель скорости ADC, // включаем ADC и запускаем ADC и autotriger ADC
 }
 
 void ACsetOn() {
-	ACSR |= 1 << ACBG;                      // Ïîäêëþ÷àåì êî âõîäó Ain0 1.1V äëÿ Cyfral/Metacom
-	ADCSRA &= ~(1 << ADEN);                 // âûêëþ÷àåì ADC
-	ADMUX = (ADMUX & 0b11110000) | 0b0011;  // ïîäêëþ÷àåì ê AC Ëèíèþ A3
-	ADCSRB |= 1 << ACME;                    // âêëþ÷àåì ìóëüòèïëåêñîð AC
+	ACSR |= 1 << ACBG;                      // Подключаем ко входу Ain0 1.1V для Cyfral/Metacom
+	ADCSRA &= ~(1 << ADEN);                 // выключаем ADC
+	ADMUX = (ADMUX & 0b11110000) | 0b0011;  // подключаем к AC Линию A3
+	ADCSRB |= 1 << ACME;                    // включаем мультиплексор AC
 }
 
 byte calcAverage(byte& halft) {
@@ -78,16 +78,16 @@ bool read_cyfral(byte* buf) {
 			j = 0;
 			k = 0;
 			continue;
-		}  //êîíòðîëü ñòàðòîâîé ïîñëåäîâàòåëüíîñòè 0b0001
+		}  //контроль стартовой последовательности 0b0001
 		if ((i == 3) && (ti < halfT)) continue;
 		if (ti > halfT) bitSet(buf[i >> 3], 7 - j);
 		else if (i > 3) k++;
-		if ((i > 3) && ((i - 3) % 4 == 0)) {  //íà÷èíàÿ ñ 4-ãî áèòà ïðîâåðÿåì êîëè÷åñòâî íóëåé êàæäîé ñòðîêè èç 4-è áèò
+		if ((i > 3) && ((i - 3) % 4 == 0)) {  //начиная с 4-го бита проверяем количество нулей каждой строки из 4-и бит
 			if (k != 1) {
 				for (byte n = 0; n < (i >> 3) + 2; n++) buf[n] = 0;
 				i = j = k = 0;
 				continue;
-			}  //åñëè íóëåé áîëüøå îäíîé - íà÷èíàåì ñíà÷àëà
+			}  //если нулей больше одной - начинаем сначала
 			k = 0;
 		}
 		j++;
@@ -105,7 +105,7 @@ bool searchCyfral() {
 		if (addr[i] != keyID[i]) return false;
 		DEBUGHEX(addr[i]);
 		if (++i < 8)DEBUG(':'); else break;
-		//keyID[i] = addr[i];  // êîïèðóåì ïðî÷òåííûé êîä â ReadID
+		//keyID[i] = addr[i];  // копируем прочтенный код в ReadID
 	}
 	keyType = keyCyfral;
 	DEBUGLN(F(" Type: Cyfral "));
@@ -125,22 +125,22 @@ again:
 		if ((ti == 0) || (ti > 500)) {
 			goto again;
 		}
-		if ((i == 0) && (ti + 30 < (halfT << 1))) continue;  //âû÷èñëÿåì ïåðèîä;
+		if ((i == 0) && (ti + 30 < (halfT << 1))) continue;  //вычисляем период;
 		if ((i == 2) && (ti > halfT)) {
 			goto again;
-		}  //âû÷èñëÿåì ïåðèîä;
+		}  //вычисляем период;
 		if (((i == 1) || (i == 3)) && (ti < halfT)) {
 			goto again;
-		}  //âû÷èñëÿåì ïåðèîä;
+		}  //вычисляем период;
 		if (ti < halfT) {
 			buf[i >> 3] |= _BV(7 - j);
-			if (i > 3) k++;  // ñ÷èòàåì êîë-âî åäèíèö
+			if (i > 3) k++;  // считаем кол-во единиц
 		}
-		if ((i > 3) && ((i - 3) & 7 == 0)) {  //íà÷èíàÿ ñ 4-ãî áèòà ïðîâåðÿåì êîíòðîëü ÷åòíîñòè êàæäîé ñòðîêè èç 8-è áèò
+		if ((i > 3) && ((i - 3) & 7 == 0)) {  //начиная с 4-го бита проверяем контроль четности каждой строки из 8-и бит
 			if (k & 1) {
 				for (byte n = 0; n < (i >> 3) + 1; n++) buf[n] = 0;
 				goto again;
-			}  //åñëè íå÷åòíî - íà÷èíàåì ñíà÷àëà
+			}  //если нечетно - начинаем сначала
 			k = 0;
 		}
 		if (++j > 7) j = 0;
@@ -159,7 +159,7 @@ bool searchKT(byte(&data)[8], byte(&buf)[8]) {
 		if (buf[i] != data[i]) return false;
 		DEBUGHEX(buf[i]);
 		if (++i < 8)DEBUG(':'); else break;
-		//keyID[i] = addr[i];  // êîïèðóåì ïðî÷òåííûé êîä â ReadID
+		//keyID[i] = addr[i];  // копируем прочтенный код в ReadID
 	}
 	return true;
 }
