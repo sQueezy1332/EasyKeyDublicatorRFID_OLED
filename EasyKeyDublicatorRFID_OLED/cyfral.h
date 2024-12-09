@@ -6,34 +6,34 @@ uint32_t pulseACompA(bool pulse, byte Average = 80, uint32_t timeOut = 1500) {  
 		ADCSRA |= (1 << ADSC);
 		while (ADCSRA & (1 << ADSC));  // Wait until the ADSC bit has been cleared
 		if (ADCH > 200) return 0;
-		if (ADCH > Average) AcompState = HIGH;  // читаем флаг компаратора
+		if (ADCH > Average) AcompState = HIGH;  // Г·ГЁГІГ ГҐГ¬ ГґГ«Г ГЈ ГЄГ®Г¬ГЇГ Г°Г ГІГ®Г°Г 
 		else AcompState = LOW;
 		if (AcompState == pulse) {
 			tEnd = micros() + timeOut;
 			do {
 				ADCSRA |= (1 << ADSC);
 				while (ADCSRA & (1 << ADSC));	// Wait until the ADSC bit has been cleared
-				if (ADCH > Average) AcompState = HIGH;  // читаем флаг компаратора
+				if (ADCH > Average) AcompState = HIGH;  // Г·ГЁГІГ ГҐГ¬ ГґГ«Г ГЈ ГЄГ®Г¬ГЇГ Г°Г ГІГ®Г°Г 
 				else AcompState = LOW;
 				if (AcompState != pulse) return (uint32_t)(micros() + timeOut - tEnd);
 			} while (micros() < tEnd);
-			return 0;  //таймаут, импульс не вернуся оратно
+			return 0;  //ГІГ Г©Г¬Г ГіГІ, ГЁГ¬ГЇГіГ«ГјГ± Г­ГҐ ГўГҐГ°Г­ГіГ±Гї Г®Г°Г ГІГ­Г®
 		}            // end if
 	} while (micros() < tEnd);
 	return 0;
 }
 
 void ADCsetOn() {
-	ADMUX = (ADMUX & 0b11110000) | 0b0011 | (1 << ADLAR);                // (1 << REFS0);          // подключаем к AC Линию A3 ,  левое выравние, измерение до Vcc
-	ADCSRB = (ADCSRB & 0b11111000) | (1 << ACME);                        // источник перезапуска ADC FreeRun, включаем мультиплексор AC
-	ADCSRA = (ADCSRA & 0b11111000) | 0b011 | (1 << ADEN) | (1 << ADSC);  // | (1<<ADATE);      // 0b011 делитель скорости ADC, // включаем ADC и запускаем ADC и autotriger ADC
+	ADMUX = (ADMUX & 0b11110000) | 0b0011 | (1 << ADLAR);                // (1 << REFS0);          // ГЇГ®Г¤ГЄГ«ГѕГ·Г ГҐГ¬ ГЄ AC Г‹ГЁГ­ГЁГѕ A3 ,  Г«ГҐГўГ®ГҐ ГўГ»Г°Г ГўГ­ГЁГҐ, ГЁГ§Г¬ГҐГ°ГҐГ­ГЁГҐ Г¤Г® Vcc
+	ADCSRB = (ADCSRB & 0b11111000) | (1 << ACME);                        // ГЁГ±ГІГ®Г·Г­ГЁГЄ ГЇГҐГ°ГҐГ§Г ГЇГіГ±ГЄГ  ADC FreeRun, ГўГЄГ«ГѕГ·Г ГҐГ¬ Г¬ГіГ«ГјГІГЁГЇГ«ГҐГЄГ±Г®Г° AC
+	ADCSRA = (ADCSRA & 0b11111000) | 0b011 | (1 << ADEN) | (1 << ADSC);  // | (1<<ADATE);      // 0b011 Г¤ГҐГ«ГЁГІГҐГ«Гј Г±ГЄГ®Г°Г®Г±ГІГЁ ADC, // ГўГЄГ«ГѕГ·Г ГҐГ¬ ADC ГЁ Г§Г ГЇГіГ±ГЄГ ГҐГ¬ ADC ГЁ autotriger ADC
 }
 
 void ACsetOn() {
-	ACSR |= 1 << ACBG;                      // Подключаем ко входу Ain0 1.1V для Cyfral/Metacom
-	ADCSRA &= ~(1 << ADEN);                 // выключаем ADC
-	ADMUX = (ADMUX & 0b11110000) | 0b0011;  // подключаем к AC Линию A3
-	ADCSRB |= 1 << ACME;                    // включаем мультиплексор AC
+	ACSR |= 1 << ACBG;                      // ГЏГ®Г¤ГЄГ«ГѕГ·Г ГҐГ¬ ГЄГ® ГўГµГ®Г¤Гі Ain0 1.1V Г¤Г«Гї Cyfral/Metacom
+	ADCSRA &= ~(1 << ADEN);                 // ГўГ»ГЄГ«ГѕГ·Г ГҐГ¬ ADC
+	ADMUX = (ADMUX & 0b11110000) | 0b0011;  // ГЇГ®Г¤ГЄГ«ГѕГ·Г ГҐГ¬ ГЄ AC Г‹ГЁГ­ГЁГѕ A3
+	ADCSRB |= 1 << ACME;                    // ГўГЄГ«ГѕГ·Г ГҐГ¬ Г¬ГіГ«ГјГІГЁГЇГ«ГҐГЄГ±Г®Г° AC
 }
 
 byte calcAverage(byte& halft) {
@@ -78,16 +78,16 @@ bool read_cyfral(byte* buf) {
 			j = 0;
 			k = 0;
 			continue;
-		}  //контроль стартовой последовательности 0b0001
+		}  //ГЄГ®Г­ГІГ°Г®Г«Гј Г±ГІГ Г°ГІГ®ГўГ®Г© ГЇГ®Г±Г«ГҐГ¤Г®ГўГ ГІГҐГ«ГјГ­Г®Г±ГІГЁ 0b0001
 		if ((i == 3) && (ti < halfT)) continue;
 		if (ti > halfT) bitSet(buf[i >> 3], 7 - j);
 		else if (i > 3) k++;
-		if ((i > 3) && ((i - 3) % 4 == 0)) {  //начиная с 4-го бита проверяем количество нулей каждой строки из 4-и бит
+		if ((i > 3) && ((i - 3) % 4 == 0)) {  //Г­Г Г·ГЁГ­Г Гї Г± 4-ГЈГ® ГЎГЁГІГ  ГЇГ°Г®ГўГҐГ°ГїГҐГ¬ ГЄГ®Г«ГЁГ·ГҐГ±ГІГўГ® Г­ГіГ«ГҐГ© ГЄГ Г¦Г¤Г®Г© Г±ГІГ°Г®ГЄГЁ ГЁГ§ 4-ГЁ ГЎГЁГІ
 			if (k != 1) {
 				for (byte n = 0; n < (i >> 3) + 2; n++) buf[n] = 0;
 				i = j = k = 0;
 				continue;
-			}  //если нулей больше одной - начинаем сначала
+			}  //ГҐГ±Г«ГЁ Г­ГіГ«ГҐГ© ГЎГ®Г«ГјГёГҐ Г®Г¤Г­Г®Г© - Г­Г Г·ГЁГ­Г ГҐГ¬ Г±Г­Г Г·Г Г«Г 
 			k = 0;
 		}
 		j++;
@@ -105,7 +105,7 @@ bool searchCyfral() {
 		if (addr[i] != keyID[i]) return false;
 		DEBUGHEX(addr[i]);
 		if (++i < 8)DEBUG(':'); else break;
-		//keyID[i] = addr[i];  // копируем прочтенный код в ReadID
+		//keyID[i] = addr[i];  // ГЄГ®ГЇГЁГ°ГіГҐГ¬ ГЇГ°Г®Г·ГІГҐГ­Г­Г»Г© ГЄГ®Г¤ Гў ReadID
 	}
 	keyType = keyCyfral;
 	DEBUGLN(F(" Type: Cyfral "));
@@ -125,22 +125,22 @@ again:
 		if ((ti == 0) || (ti > 500)) {
 			goto again;
 		}
-		if ((i == 0) && (ti + 30 < (halfT << 1))) continue;  //вычисляем период;
+		if ((i == 0) && (ti + 30 < (halfT << 1))) continue;  //ГўГ»Г·ГЁГ±Г«ГїГҐГ¬ ГЇГҐГ°ГЁГ®Г¤;
 		if ((i == 2) && (ti > halfT)) {
 			goto again;
-		}  //вычисляем период;
+		}  //ГўГ»Г·ГЁГ±Г«ГїГҐГ¬ ГЇГҐГ°ГЁГ®Г¤;
 		if (((i == 1) || (i == 3)) && (ti < halfT)) {
 			goto again;
-		}  //вычисляем период;
+		}  //ГўГ»Г·ГЁГ±Г«ГїГҐГ¬ ГЇГҐГ°ГЁГ®Г¤;
 		if (ti < halfT) {
 			buf[i >> 3] |= _BV(7 - j);
-			if (i > 3) k++;  // считаем кол-во единиц
+			if (i > 3) k++;  // Г±Г·ГЁГІГ ГҐГ¬ ГЄГ®Г«-ГўГ® ГҐГ¤ГЁГ­ГЁГ¶
 		}
-		if ((i > 3) && ((i - 3) & 7 == 0)) {  //начиная с 4-го бита проверяем контроль четности каждой строки из 8-и бит
+		if ((i > 3) && ((i - 3) & 7 == 0)) {  //Г­Г Г·ГЁГ­Г Гї Г± 4-ГЈГ® ГЎГЁГІГ  ГЇГ°Г®ГўГҐГ°ГїГҐГ¬ ГЄГ®Г­ГІГ°Г®Г«Гј Г·ГҐГІГ­Г®Г±ГІГЁ ГЄГ Г¦Г¤Г®Г© Г±ГІГ°Г®ГЄГЁ ГЁГ§ 8-ГЁ ГЎГЁГІ
 			if (k & 1) {
 				for (byte n = 0; n < (i >> 3) + 1; n++) buf[n] = 0;
 				goto again;
-			}  //если нечетно - начинаем сначала
+			}  //ГҐГ±Г«ГЁ Г­ГҐГ·ГҐГІГ­Г® - Г­Г Г·ГЁГ­Г ГҐГ¬ Г±Г­Г Г·Г Г«Г 
 			k = 0;
 		}
 		if (++j > 7) j = 0;
@@ -159,7 +159,7 @@ bool searchKT(byte(&data)[8], byte(&buf)[8]) {
 		if (buf[i] != data[i]) return false;
 		DEBUGHEX(buf[i]);
 		if (++i < 8)DEBUG(':'); else break;
-		//keyID[i] = addr[i];  // копируем прочтенный код в ReadID
+		//keyID[i] = addr[i];  // ГЄГ®ГЇГЁГ°ГіГҐГ¬ ГЇГ°Г®Г·ГІГҐГ­Г­Г»Г© ГЄГ®Г¤ Гў ReadID
 	}
 	return true;
 }
