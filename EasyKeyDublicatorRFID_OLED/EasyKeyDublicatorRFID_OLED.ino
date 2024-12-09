@@ -52,19 +52,19 @@ int main(void) {
 		if (EEPROM_key_count > 0) {
 			if (BtnUp.shortPress()) {  //при повороте энкодера листаем ключи из eeprom
 				if (--EEPROM_key_index < 1) EEPROM_key_index = EEPROM_key_count;
-				EEPROM_get_key();
+				EEPROM_get_key(keyID);
 				OLED_printKey(keyID);
 				//Sd_WriteStep();
 			} else if (BtnDown.shortPress()) {
 				if (++EEPROM_key_index > EEPROM_key_count) EEPROM_key_index = 0;
-				EEPROM_get_key();
+				EEPROM_get_key(keyID);
 				OLED_printKey(keyID);
 				//Sd_WriteStep();
 			}
 		}
 		if ((Mode != md_empty) && BtnOK.longPress()) {  // Если зажать кнопкку - ключ сохранися в EEPROM
 			if (EPPROM_AddKey(keyID)) {
-				OLED_print(F("The key saved"), false);
+				OLEDprint_error(KEY_SAVED);
 				//Sd_ReadOK();
 				delay(1000);
 			} else {//Sd_ErrorBeep();
@@ -75,21 +75,22 @@ int main(void) {
 		//stTimer = millis();
 		switch (Mode) {
 		case md_empty: case md_read:
-			if (/*searchKT(keyID, addr) ||*/ searchEM_Marine(keyID, addr) || searchIbutton(keyID, addr)) {  // запускаем поиск cyfral, затем поиск EM_Marine, затем поиск dallas
+			if (searchEM_Marine(keyID, addr) == NOERROR) {
+
+			} else if (read_dallas(keyID) == NOERROR) {
+
+			}
+			/*searchKT(keyID, addr) ||*/ // || 
 
 				//Sd_ReadOK();
 				Mode = md_read;
 				digitalWrite(G_Led, HIGH);
 				OLED_printKey(keyID, true);
-			}break;
+				break;
 		case md_write:
-			if (keyType == keyEM_Marine) {
-				error = write_rfid(keyID, addr);
-			} else { 
-				error = write_ibutton(keyID, addr); 
-			}
-			DEBUG("Error = "); DEBUGLN(error);
-			if (error == 0) { OLED_print(F("The key has copied"), false); } else if (error == 1) { OLED_print(F("The copy key faild")); } else if (error == 2) { OLED_print(F("The read key faild")); } else if (error == 3) { OLED_print(F("It is the same key")); }
+			if (keyType == keyEM_Marine) {error = write_rfid(keyID, addr);} 
+			else { error = write_ibutton(keyID); }
+			OLEDprint_error(error);
 			delay(2000);
 			break;
 		case md_blueMode:
@@ -133,7 +134,7 @@ void setup() {
 	if (EEPROM_key_count != 0) {
 		EEPROM_key_index = EEPROM[EEPROM_KEY_INDEX];
 		DEBUG(F("Read key code from EEPROM: "));
-		EEPROM_get_key();
+		EEPROM_get_key(keyID);
 		for (byte i = 0;; ) {
 			DEBUGHEX(keyID[i]); if (++i < 8)DEBUG(':'); else break;
 		}
@@ -152,3 +153,5 @@ void setup() {
 	//Timer1.attachInterrupt(timerIsr);  // запуск таймера
 	//digitalWrite(Luse_Led, !digitalRead(Luse_Led));
 }
+//***************** звуки****************
+
