@@ -86,18 +86,16 @@ bool writeTM2004(const byte(&data)[8]) {  // функция записи на TM
 }
 
 void convert_MC(byte(&buf)[8]) {
-	byte data;
-	for (byte i = 0, BYTE, bitmaskmsb, bitmasklsb; i < 5; i++) {
+	byte i, BYTE, bitmask, data;
+	for (i = 0; i < 5; i++) {
 		data = ~buf[i];
-		for (BYTE = 0, bitmasklsb = 0, bitmaskmsb = 128; bitmaskmsb; bitmaskmsb >>= 1, bitmasklsb <<= 1) {
-			if (data & bitmasklsb) BYTE |= bitmaskmsb;
+		for (BYTE = 0, bitmask = 128; bitmask; bitmask >>= 1, data >>= 1) {
+			if (data & 1) BYTE |= bitmask;
 		}
 		buf[i] = BYTE;
 	}
-	buf[4] &= 0xf0;
-	buf[5] = 0;
-	buf[6] = 0;
-	buf[7] = 0;
+	buf[4] &= 0xF0;
+	do { buf[i] = 0; } while (++i < 8); //memset(&buf[i], 0, 3);
 }
 
 bool dataBurningOK(byte bitCnt, const byte(&data)[8], byte(&buf)[8]) {
