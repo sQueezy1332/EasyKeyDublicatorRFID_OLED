@@ -47,10 +47,10 @@ byte indxKeyInROM(const byte(&buf)[8]) {  //возвращает индекс и
 key_type getKeyType(const byte(&buf)[8]) {
 	if (buf[0] == 0x1) return keyDallas;  // это ключ формата dallas
 	switch (buf[0] >> 4) {
-	case 1: return keyCyfral;
-	case 2: return keyMetacom;
+	case 0x1: return keyCyfral;
+	case 0x2: return keyMetacom;
+	case 0xF: return keyEM_Marine;
 	}
-	if (buf[7] == 0xFF) return keyEM_Marine;
 	return keyUnknown;
 }
 
