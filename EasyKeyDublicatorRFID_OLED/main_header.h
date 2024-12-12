@@ -25,51 +25,60 @@ DualFunctionButton BtnDown(BtnDownPin, 2000, INPUT_PULLUP);
 //Encoder enc1(CLK, DT, BtnPin);
 
 //OneWireSlave iBtnEmul(iBtnEmulPin);  //Эмулятор iButton для BlueMode
-const byte MAX_KEYS = EEPROM.length() / 8 - 1;                   // максимальное кол-во ключей, которое влазит в EEPROM, но не > 20
+const byte MAX_KEYS = EEPROM.length() / 8 - 1;
 byte EEPROM_key_count;               // количество ключей 0..MAX_KEYS, хранящихся в EEPROM
 byte EEPROM_key_index = 0;           // 1..EEPROM_key_count номер последнего записанного в EEPROM ключа
-byte addr[8];                        // временный буфер
+byte buffer[8];                        // временный буфер
 byte keyID[8];                       // ID ключа для записи
 //byte halfT;                          // полупериод для метаком
 byte rom[8]{ 0x1, 0xBE, 0x40, 0x11, 0x5A, 0x36, 0x0, 0xE1 };
 
 byte indxKeyInROM(const byte(&buf)[8]) {  //возвращает индекс или ноль если нет в ROM
 	uint16_t idx = 0;
-	for (byte count = 1, i = 0; count <= EEPROM_key_count; count++, i = 0, idx += 8) {  // ищем ключ в eeprom.
-		do {
+	for (byte count = 1, i; count <= EEPROM_key_count; count++, idx += 8) {  // ищем ключ в eeprom.
+		for (i = 0;;) {
 			if (EEPROM[idx + i] != buf[i]) break;
-		} while (++i < 8);
-		if (i == 8) return count;
+			if (++i == 8) return count;
+		}
 	}
 	return 0;
 }
 
 key_type getKeyType(const byte(&buf)[8]) {
-	if (buf[0] == 0x01) return keyDallas;  // это ключ формата dallas
+	if (buf[0] == 0x1) return keyDallas;  // это ключ формата dallas
 	switch (buf[0] >> 4) {
 	case 1: return keyCyfral;
 	case 2: return keyMetacom;
-	case 0xF: if (vertParityCheck(buf)) return keyEM_Marine;
 	}
+	if (buf[7] == 0xFF) return keyEM_Marine;
+	return keyUnknown;
 }
 
 void OLED_printKey(const byte(&buf)[8], bool keyIndex = false) {
 	String str;
 	if (!keyIndex) {
-		str += "The key "; str += EEPROM_key_index; str += " of "; str += EEPROM_key_count; str += " in ROM";
+		str = "The key "; str += EEPROM_key_index; str += " of "; str += EEPROM_key_count; ;
 	} else {
 		auto index = indxKeyInROM(buf);
-		if (index != 0) { str += "The key exists in ROM: "; str += index; } else { str += "Hold the Btn to save"; }
-	}
-	_OLED.clrScr(); _OLED.print(str, 0, 0);
-	str = "";
-	for (byte i = 0;;) { str += String(buf[i], HEX); if (++i < 8)str += ':'; else break; }  // это ключ формата dallas
-	//keyType = keyDallas;
-		if ((buf[0] == 1) && ibutton.crc8(buf, 7) != buf[7]) {
-			str += "\n !CRC";
+		if (index != 0) {
+			str = "The key "; str += "exists: "; str += index; str += " of "; str += EEPROM_key_count;
 		}
-	DEBUGLN(str);
-	_OLED.print(str, 0, 12);
+		else { str = "Hold Btn to save in "; 
+		index = EEPROM_key_index + 1 > MAX_KEYS ? 1 : EEPROM_key_index + 1;
+		str += index;  str += " index";
+		}
+	}
+		_OLED.clrScr(); _OLED.print(str, 0, 0); DEBUGLN(str);
+	str = "";
+	for (byte temp, i = (keyType == keyEM_Marine) ? 5 : 7;; --i) {
+		if(i == 0 && keyType == keyEM_Marine) break;
+		temp = buf[i]; 
+		if ((temp & 0xF0) == 0) str += '0';
+		str += String(temp, HEX);
+		if (i != 0) str += ':'; else break;
+	}
+	if ((keyType == keyDallas) && (ibutton.crc8(buf, 7) != buf[7])) { str += "\t !CRC"; }
+		_OLED.print(str, 0, 12); DEBUGLN(str);
 	str = "Type ";
 	switch (keyType) {
 	case keyDallas: str += "Dallas"; break;
@@ -78,33 +87,29 @@ void OLED_printKey(const byte(&buf)[8], bool keyIndex = false) {
 	case keyEM_Marine: str += "EM_Marine"; break;
 	case keyUnknown: str += "Unknown"; break;
 	}
-	DEBUGLN(str);
-	_OLED.print(str, 0, 24);
-	_OLED.update();
+		_OLED.print(str, 0, 24); DEBUGLN(str);
+		_OLED.update();
 }
 
 void OLEDprint_error(byte err = 0) {
 	//digitalWrite(R_Led, LOW);
 	String str;
-	_OLED.clrScr(); //,
-	switch (err) {
-	case NOERROR: str = F("Success"); break;
-	case KEY_SAVED: str = F("Key saved"); break;
-	default: 
-	{ str = F("ERROR_"); 
+	//_OLED.clrScr(); //,'
+	if(err == NOERROR)str = F("Success");
+	else {
+		str = F("ERROR_");
 		switch (err) {
-			case ERROR_COPY: str += F("COPY");  break;
-			case ERROR_UNKNOWN_KEY: str += F("UNKNOWN"); str += F("_KEY"); break;
-			case ERROR_SAME_KEY: str += F("SAME"); str += F("_KEY"); break;
-			case ERROR_RFID_TIMEOUT: str += F("RFID_TIMEOUT"); break;
-			case ERROR_RFID_READ_TIMEOT: str += F("RFID_READ_TIMEOT"); break;
-			case ERROR_RFID_PARITY: str += F("RFID_PARITY"); break;
+		case ERROR_COPY: str += F("COPY");  break;
+		case ERROR_UNKNOWN_KEY: str += F("UNKNOWN"); str += F("_KEY"); break;
+		case ERROR_SAME_KEY: str += F("SAME"); str += F("_KEY"); break;
+		case ERROR_RFID_TIMEOUT: str += F("RFID_TIMEOUT"); break;
+		case ERROR_RFID_READ_TIMEOT: str += F("RFID_READ_TIMEOT"); break;
+		case ERROR_RFID_PARITY: str += F("RFID_PARITY"); break;
 		}
-		str += "\t= "; str += err;
-	}
+		str += "\t# "; str += err;
 	}
 	DEBUGLN(str);
-	_OLED.print(str, 0, 12);
+	_OLED.print(str, 0, 24);
 	_OLED.update();
 	//if (err) {Sd_ErrorBeep();}
 	//else { Sd_ReadOK(); }
