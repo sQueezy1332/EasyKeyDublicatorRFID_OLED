@@ -58,7 +58,7 @@ enum emRWType : uint8_t {
 	EM4305
 };  // тип болванки
 
-enum error_t {
+enum error_t : uint8_t {
 	NOERROR = 0,
 	KEY_SAVED,
 	ERROR_READ,
@@ -68,6 +68,7 @@ enum error_t {
 	ERROR_RFID_TIMEOUT,
 	ERROR_RFID_READ_TIMEOT,
 	ERROR_RFID_PARITY,
+	ERROR_RFID_STOP_BIT,
 };
 
 key_type keyType;
