@@ -56,7 +56,7 @@ int main(void) {
 				OLED_printKey(keyID);
 				//Sd_WriteStep();
 			} else if (BtnDown.shortPress()) {
-				if (++EEPROM_key_index > EEPROM_key_count) EEPROM_key_index = 0;
+				if (++EEPROM_key_index > EEPROM_key_count) EEPROM_key_index = 1;
 				EEPROM_get_key(keyID);
 				OLED_printKey(keyID);
 				//Sd_WriteStep();
@@ -75,23 +75,23 @@ int main(void) {
 		//stTimer = millis();
 		switch (Mode) {
 		case md_empty: case md_read:
-			if (searchEM_Marine(keyID, addr) == NOERROR) {
+			if (searchEM_Marine(keyID) == NOERROR) {
 
 			} else if (read_dallas(keyID) == NOERROR) {
 
 			}
-			/*searchKT(keyID, addr) ||*/ // || 
+			/*searchKT(keyID, buffer) ||*/ // || 
 
 				//Sd_ReadOK();
-				Mode = md_read;
-				digitalWrite(G_Led, HIGH);
-				OLED_printKey(keyID, true);
-				break;
+			Mode = md_read;
+			digitalWrite(G_Led, HIGH);
+			OLED_printKey(keyID, true);
+			break;
 		case md_write:
-			if (keyType == keyEM_Marine) {error = write_rfid(keyID, addr);} 
+			if (keyType == keyEM_Marine) { error = write_rfid(keyID); } 
 			else { error = write_ibutton(keyID); }
 			OLEDprint_error(error);
-			delay(2000);
+			delay(1000);
 			break;
 		case md_blueMode:
 			SendEM_Marine(keyID);
@@ -133,12 +133,12 @@ void setup() {
 	if (EEPROM_key_count > MAX_KEYS) EEPROM_key_count = 0;
 	if (EEPROM_key_count != 0) {
 		EEPROM_key_index = EEPROM[EEPROM_KEY_INDEX];
-		DEBUG(F("Read key code from EEPROM: "));
-		EEPROM_get_key(keyID);
-		for (byte i = 0;; ) {
-			DEBUGHEX(keyID[i]); if (++i < 8)DEBUG(':'); else break;
-		}
-		DEBUGLN();
+		//DEBUG(F("Read key code from EEPROM: "));
+		//EEPROM_get_key(keyID);
+		//for (byte i = 0;; ) {
+		//	DEBUGHEX(keyID[i]); if (++i < 8)DEBUG(':'); else break;
+		//}
+		//DEBUGLN();
 		//delay(3000);
 		OLED_printKey(keyID);
 		Mode = md_read;
@@ -153,5 +153,5 @@ void setup() {
 	//Timer1.attachInterrupt(timerIsr);  // запуск таймера
 	//digitalWrite(Luse_Led, !digitalRead(Luse_Led));
 }
-//***************** звуки****************
+
 
