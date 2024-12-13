@@ -136,9 +136,10 @@ void sendOpT5557(byte opCode, uint32_t data = 0, byte blokAddr = 1, uint32_t pas
 void rfid_encode(const byte(&data)[8], byte(&buf)[8]) {
 	((uint16_t*)&buf)[3] = 0xFF80;
 	memset(buf, 0, 6);
-	for (uint8_t b = 63 - 9, nibble = 0, bit, parity; nibble < 10; nibble++, b--) {
+	for (uint8_t b = 63 - 9, nibble = 0, bit, parity, mask; nibble < 10; nibble++, b--) {
 		for (bit = 0, parity = 0; bit < 4; bit++, b--) {//read and write from msb
-			if (data[5 - (((nibble << 2) + bit) >> 3)] & (128 >> (((nibble << 2) + bit) & 7))) {  //<< 2 == *4 ; >> 3 == /8; &7 == %8  
+			mask = ((nibble << 2) + bit); //<< 2 == *4 ; >> 3 == /8; &7 == %8 
+			if (data[5 - (mask >> 3)] & (128 >> (mask & 7))) {  
 				buf[b >> 3] |= _BV(b & 7); //
 				parity ^= 1;
 			}
