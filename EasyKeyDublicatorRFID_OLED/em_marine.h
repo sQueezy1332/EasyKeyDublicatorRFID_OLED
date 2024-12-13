@@ -151,7 +151,7 @@ void rfid_encode(const byte(&data)[8], byte(&buf)[8]) {
 
 void rfid_decode(const byte(&data)[8], byte(&buf)[8]) {
 	buf[7] = 0; buf[6] = 0; buf[0] = 0xFF;
-	for (uint8_t b = 63 - 9, i = 5, bit, BYTE, bitmask; i > 0; --i, b--) {
+	for (uint8_t b = 63 - 9, i = 5, bit, BYTE, bitmask; i > 0; --i) {
 		for (bit = 0, BYTE = 0, bitmask = 128; bit < 10; bit++, b--) {//read and write from msb
 			if (bit % 5 == 4) continue;
 			if (data[b >> 3] & _BV(b & 7)) {  //<< 2 == *4 ; >> 3 == /8; &7 == %8  
