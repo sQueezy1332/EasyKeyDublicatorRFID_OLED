@@ -93,7 +93,7 @@ again:
 		if (res) BYTE |= bitmask;
 	}
 	//if ((BYTE & 1) != 0) return ERROR_RFID_STOP_BIT;
-	if ((BYTE >> 1) != columnParity(buf)) return ERROR_RFID_PARITY;
+	if (BYTE != (columnParity(buf) << 1)) return ERROR_RFID_PARITY;
 	buf[0] = 0xFF;	//em marine tag
 	if (!copykey)rfid_disable();
 	//digitalWrite(G_Led, gr);
