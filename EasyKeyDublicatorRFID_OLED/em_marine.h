@@ -10,6 +10,36 @@ byte columnParity(const byte(&buf)[8]) {
 	return result & 0xF;
 }
 
+void rfid_encode(const byte(&data)[8], byte(&buf)[8]) {
+	((uint16_t*)&buf)[3] = 0xFF80;
+	memset(buf, 0, 6);
+	for (uint8_t b = 63 - 9, nibble = 0, bit, parity, mask; nibble < 10; nibble++, b--) {
+		for (bit = 0, parity = 0; bit < 4; bit++, b--) {//read and write from msb
+			mask = ((nibble << 2) + bit); //<< 2 == *4 ; >> 3 == /8; &7 == %8 
+			if (data[5 - (mask >> 3)] & (128 >> (mask & 7))) {
+				buf[b >> 3] |= _BV(b & 7); //
+				parity ^= 1;
+			}
+		}
+		if (parity) buf[b >> 3] |= _BV(b & 0x07);
+	}
+	buf[0] |= columnParity(data) << 1;
+}
+
+void rfid_decode(const byte(&data)[8], byte(&buf)[8]) {
+	buf[7] = 0; buf[6] = 0; buf[0] = 0xFF;
+	for (uint8_t b = 63 - 9, i = 5, bit, BYTE, bitmask; i > 0; --i) {
+		for (bit = 0, BYTE = 0, bitmask = 128; bit < 10; bit++, b--) {//read and write from msb
+			if (bit % 5 == 4) continue;
+			if (data[b >> 3] & _BV(b & 7)) {  //<< 2 == *4 ; >> 3 == /8; &7 == %8  
+				BYTE |= bitmask;
+			}
+			bitmask >>= 1;
+		}
+		buf[i] = BYTE;
+	}
+}
+
 inline void rfid_disable() {
 	TCCR2A = 0; pinMode(FreqGen, INPUT); // Оключить ШИМ COM2A(pin 11)
 }
@@ -131,36 +161,6 @@ void sendOpT5557(byte opCode, uint32_t data = 0, byte blokAddr = 1, uint32_t pas
 	}
 	for (byte bitmask = (1 << 3); bitmask; bitmask >>= 1) { TxBitRfid(blokAddr & bitmask); }
 	delay(10);                 // ждем пока пишутся данные
-}
-
-void rfid_encode(const byte(&data)[8], byte(&buf)[8]) {
-	((uint16_t*)&buf)[3] = 0xFF80;
-	memset(buf, 0, 6);
-	for (uint8_t b = 63 - 9, nibble = 0, bit, parity, mask; nibble < 10; nibble++, b--) {
-		for (bit = 0, parity = 0; bit < 4; bit++, b--) {//read and write from msb
-			mask = ((nibble << 2) + bit); //<< 2 == *4 ; >> 3 == /8; &7 == %8 
-			if (data[5 - (mask >> 3)] & (128 >> (mask & 7))) {
-				buf[b >> 3] |= _BV(b & 7); //
-				parity ^= 1;
-			}
-		}
-		if (parity) buf[b >> 3] |= _BV(b & 0x07);
-	}
-	buf[0] |= columnParity(data) << 1;
-}
-
-void rfid_decode(const byte(&data)[8], byte(&buf)[8]) {
-	buf[7] = 0; buf[6] = 0; buf[0] = 0xFF;
-	for (uint8_t b = 63 - 9, i = 5, bit, BYTE, bitmask; i > 0; --i) {
-		for (bit = 0, BYTE = 0, bitmask = 128; bit < 10; bit++, b--) {//read and write from msb
-			if (bit % 5 == 4) continue;
-			if (data[b >> 3] & _BV(b & 7)) {  //<< 2 == *4 ; >> 3 == /8; &7 == %8  
-				BYTE |= bitmask;
-			}
-			bitmask >>= 1;
-		}
-		buf[i] = BYTE;
-	}
 }
 
 byte write_rfidT5557(const byte(&data)[8]) {
