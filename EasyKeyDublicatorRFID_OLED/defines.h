@@ -16,15 +16,14 @@
 #define COMPARATOR (ACSR & _BV(ACO))
 #define TIMER2MASK (_BV(COM2A0) | _BV(COM2B1) | _BV(WGM21) | _BV(WGM20))
 //pins
-#define iButtonPin PIN_A3   // Линия data ibutton
-//#define iBtnEmulPin A1  // Линия эмулятора ibutton
+#define iButtonPin PIN_A3   // Линия data ibutton	
 #define Luse_Led 13     // Светодиод лузы
 #define R_Led 2         // RGB Led
 #define G_Led 3
 #define B_Led 4
 #define ACpin 6        // Вход Ain0 аналогового компаратора 0.1В для EM-Marie
+#define FreqGen 11     // генератор 125 кГц //PB3
 #define speakerPin 12  // Спикер, он же buzzer, он же beeper
-#define FreqGen 11     // генератор 125 кГц
 //#define CLK 8          // s1 энкодера
 //#define DT 9           // s2 энкодера
 #define BtnUpPin 8    // Кнопка вверх
@@ -66,8 +65,9 @@ enum error_t : uint8_t {
 	ERROR_UNKNOWN_KEY,
 	ERROR_SAME_KEY,
 	ERROR_RFID_TIMEOUT,
-	ERROR_RFID_READ_TIMEOT,
-	ERROR_RFID_PARITY,
+	ERROR_RFID_HEADER_TIMEOUT,
+	ERROR_RFID_PARITY_ROW,
+	ERROR_RFID_PARITY_COL,
 	ERROR_RFID_STOP_BIT,
 };
 
