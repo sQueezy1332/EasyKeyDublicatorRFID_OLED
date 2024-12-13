@@ -66,19 +66,22 @@ byte readEM_Marine(byte(&buf)[8], bool copykey = false) {
 	uint32_t tEnd = millis() + (copykey ? 1000 * 30 : 64);
 	byte res, i, bit, bitmask, p, BYTE;
 again:
-	if (millis() > tEnd) return ERROR_RFID_READ_TIMEOT;
-	for (bit = 0; bit < 9; bit++) {
+	if (millis() > tEnd) return ERROR_RFID_HEADER_TIMEOUT;
+	for (bit = 0; bit < 9; bit++) { //9 ones preambula
 		res = ttAComp();
 		if (res > 1) return ERROR_RFID_TIMEOUT;
 		if (res == 0) goto again;
 	}
-	for (i = 5; i; --i) {
+	for (i = 5; i; --i) {	//10 nibbles of data and 10 row parity bits
 		for (BYTE = 0, bit = 0, p = 0, bitmask = 128; bit < 10; bit++) {
 			res = ttAComp();
 			if (res > 1) { return ERROR_RFID_TIMEOUT; }
 			if (res == 1) p^=1;
 			if ((bit == 5 - 1) || (bit == 10 - 1)) {
-				if (p & 1) goto again;
+				if (p & 1) { 
+					if (millis() > tEnd) return ERROR_RFID_PARITY_ROW;
+					else goto again;
+				}
 				p = 0;
 				continue;
 			}
@@ -87,13 +90,13 @@ again:
 		}
 		buf[i] = BYTE;
 	}
-	for (bitmask = (1 << 5), BYTE = 0; bitmask; bitmask >>= 1) {
+	for (bitmask = (1 << 5), BYTE = 0; bitmask; bitmask >>= 1) {//column parity and stop bit
 		res = ttAComp();
 		if (res > 1) return ERROR_RFID_TIMEOUT;
 		if (res) BYTE |= bitmask;
 	}
 	//if ((BYTE & 1) != 0) return ERROR_RFID_STOP_BIT;
-	if (BYTE != (columnParity(buf) << 1)) return ERROR_RFID_PARITY;
+	if (BYTE != (columnParity(buf) << 1)) return ERROR_RFID_PARITY_COL;
 	buf[0] = 0xFF;	//em marine tag
 	if (!copykey)rfid_disable();
 	//digitalWrite(G_Led, gr);
@@ -213,7 +216,7 @@ byte write_rfid(const byte(&data)[8]) {
 void SendEM_Marine(const byte(&data)[8]) {
 	rfid_disable();  // отключаем шим
 	digitalWrite(FreqGen, LOW);
-	//FF:A9:8A:A4:87:78:98:6A //0x565A91B831 
+	//FF:A9:8A:A4:87:78:98:6A //0x0000565A91B831 
 	rfid_encode(data, buffer); delay(10);
 	for (byte count = 0,i, bitmask; count < 10; count++) {
 		for (i = 7;;--i) {
