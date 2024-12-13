@@ -3,10 +3,10 @@ extern byte buffer[8];
 
 byte columnParity(const byte(&buf)[8]) {
 	byte i = 5, result = 0, temp;
-	for (; i; --i) {
+	do {
 		temp = buf[i];
 		result ^= (temp >> 4) xor (temp);
-	}
+	} while (--i);
 	return result & 0xF;
 }
 
@@ -139,7 +139,7 @@ void rfid_encode(const byte(&data)[8], byte(&buf)[8]) {
 	for (uint8_t b = 63 - 9, nibble = 0, bit, parity, mask; nibble < 10; nibble++, b--) {
 		for (bit = 0, parity = 0; bit < 4; bit++, b--) {//read and write from msb
 			mask = ((nibble << 2) + bit); //<< 2 == *4 ; >> 3 == /8; &7 == %8 
-			if (data[5 - (mask >> 3)] & (128 >> (mask & 7))) {  
+			if (data[5 - (mask >> 3)] & (128 >> (mask & 7))) {
 				buf[b >> 3] |= _BV(b & 7); //
 				parity ^= 1;
 			}
@@ -147,6 +147,20 @@ void rfid_encode(const byte(&data)[8], byte(&buf)[8]) {
 		if (parity) buf[b >> 3] |= _BV(b & 0x07);
 	}
 	buf[0] |= columnParity(data) << 1;
+}
+
+void rfid_decode(const byte(&data)[8], byte(&buf)[8]) {
+	buf[7] = 0; buf[6] = 0; buf[0] = 0xFF;
+	for (uint8_t b = 63 - 9, i = 5, bit, BYTE, bitmask; i > 0; --i, b--) {
+		for (bit = 0, BYTE = 0, bitmask = 128; bit < 10; bit++, b--) {//read and write from msb
+			if (bit % 5 == 4) continue;
+			if (data[b >> 3] & _BV(b & 7)) {  //<< 2 == *4 ; >> 3 == /8; &7 == %8  
+				BYTE |= bitmask;
+			}
+			bitmask >>= 1;
+		}
+		buf[i] = BYTE;
+	}
 }
 
 byte write_rfidT5557(const byte(&data)[8]) {
@@ -213,8 +227,8 @@ byte write_rfid(const byte(&data)[8]) {
 void SendEM_Marine(const byte(&data)[8]) {
 	rfid_disable();  // отключаем шим
 	digitalWrite(FreqGen, LOW);
-	//FF:A9:8A:A4:87:78:98:6A
-	rfid_encode(data, buffer);
+	//FF:A9:8A:A4:87:78:98:6A //0x565A91B831 
+	rfid_encode(data, buffer); delay(10);
 	for (byte count = 0,i, bitmask; count < 10; count++) {
 		for (i = 7;;--i) {
 			for (bitmask = 128; bitmask; bitmask >>= 1) {
