@@ -138,7 +138,7 @@ void rfid_encode(const byte(&data)[8], byte(&buf)[8]) {
 	memset(buf, 0, 6);
 	for (uint8_t b = 63 - 9, nibble = 0, bit, parity; nibble < 10; nibble++, b--) {
 		for (bit = 0, parity = 0; bit < 4; bit++, b--) {//read and write from msb
-			if (data[5 - (((nibble << 2) + bit) >> 3)] & (128 >> (((nibble << 2) + bit) % 7))) {  //<< 2 == *4 ; >> 3 == /8; &7 == %8  
+			if (data[5 - (((nibble << 2) + bit) >> 3)] & (128 >> (((nibble << 2) + bit) & 7))) {  //<< 2 == *4 ; >> 3 == /8; &7 == %8  
 				buf[b >> 3] |= _BV(b & 7); //
 				parity ^= 1;
 			}
