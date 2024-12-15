@@ -103,7 +103,6 @@ int main(void) {
 }
 
 void setup() {
-	cli();
 #ifndef _GYVERCORE_NOMILLIS
 	TIMSK0 |= _BV(TOIE0);
 #endif 
