@@ -1,28 +1,28 @@
 /*
   Скетч к проекту "Копировальщик ключей для домофона RFID с OLED дисплеем и хранением 8 ключей в память EEPROM"
   Аппаратная часть построена на Arduino Nano
-  Исходники на GitHub: https://github.com/AlexMalov/EasyKeyDublicatorRFID_OLED/
+  Исходники на GitHub: https://github.com/AlexMalov/EasyKeyDublicatorRFIDOLED/
   Автор: HERR DIY, AlexMalov, 2019
   v 3.2 fix cyfral bug
 */
+
 #include "main_header.h"
 
 int main(void) {
 	setup();
 	byte error;
 	for (;;) {
-		switch (Serial.read()) {
-		case 'e':  if (BtnErase.longPress()) {
-			_OLED.print(F("The keys have been deleted"), 0, 0);
+		if (BtnErase.longPress()) {
+			//OLED.print(F("The keys have been deleted"), 0, 0);
 			DEBUGLN(F("The keys have been deleted"));
 			EEPROM_key_count = 0;
 			EEPROM_key_index = 0;
 			EEPROM.update(EEPROM_KEY_COUNT, 0);
 			EEPROM.update(EEPROM_KEY_INDEX, 0);
 			//Sd_ReadOK();
-			_OLED.update();
+			OLED.update();
 		}
-		case 't': if (BtnOK.shortPress()) {  // переключаель режима чтение/запись
+		if (BtnOK.shortPress()) {  // переключаель режима чтение/запись
 			switch (Mode) {
 			case md_empty: //Sd_ErrorBeep(); break;
 			case md_read:
@@ -47,7 +47,6 @@ int main(void) {
 			DEBUG(F("Mode: "));
 			DEBUGLN(Mode);
 			//Sd_WriteStep();
-		}
 		}
 		if (EEPROM_key_count > 0) {
 			if (BtnUp.shortPress()) {  //при повороте энкодера листаем ключи из eeprom
@@ -75,12 +74,13 @@ int main(void) {
 		//stTimer = millis();
 		switch (Mode) {
 		case md_empty: case md_read:
-			if (searchEM_Marine(keyID) == NOERROR) {
-
-			} else if (read_dallas(keyID) == NOERROR) {
-
-			}
-			/*searchKT(keyID, buffer) ||*/ // || 
+			if (!readEM_Marine(buffer)) {
+				keyType = keyEM_Marine;
+			} else if (keyType = KeyDetection(buffer)) {
+				//keyType = keyCyfral;
+			} else if (read_dallas(buffer)) {
+				keyType = keyDallas;
+			} else continue;
 
 				//Sd_ReadOK();
 			Mode = md_read;
@@ -103,13 +103,13 @@ int main(void) {
 }
 
 void setup() {
+	cli();
 #ifndef _GYVERCORE_NOMILLIS
 	TIMSK0 |= _BV(TOIE0);
 #endif 
 	sei();
 	pinMode(Luse_Led, OUTPUT);
 	digitalWrite(Luse_Led, HIGH);   //поменять на LOW
-	_OLED.begin(SSD1306_128X32);   //инициализируем дисплей
 	pinMode(BtnOKPin, INPUT_PULLUP);                            // включаем чтение и подягиваем пин кнопки режима к +5В
 	pinMode(BtnUpPin, INPUT_PULLUP);
 	pinMode(BtnDownPin, INPUT_PULLUP);  // включаем чтение и подягиваем пин кнопки режима к +5В
@@ -121,11 +121,12 @@ void setup() {
 #ifdef DEBUG_ENABLE
 	Serial.begin(115200);
 #endif
-	_OLED.clrScr();            //Очищаем буфер дисплея.
-	_OLED.setFont(SmallFont);  //Перед выводом текста необходимо выбрать шрифт
-	_OLED.print(F("Hello, read a key..."), LEFT, 0);
-	_OLED.print(F("by sQueezy"), LEFT, 24);
-	_OLED.update();
+	OLED.init();
+	Wire.setClock(800000L);
+	//OLED.setFont(SmallFont);  //Перед выводом текста необходимо выбрать шрифт
+	//OLED.print(F("Hello, read a key..."), LEFT, 0);
+	//OLED.print(F("by sQueezy"), LEFT, 24);
+	//OLED.update();
 	//Sd_StartOK();
 	EEPROM_key_count = EEPROM[EEPROM_KEY_COUNT];
 	//if (MAX_KEYS > 20) MAX_KEYS = 20;
@@ -143,7 +144,7 @@ void setup() {
 		Mode = md_read;
 		digitalWrite(G_Led, HIGH);
 	} else {
-		_OLED.print(F("ROM has no keys yet."), 0, 12); _OLED.update();
+		//OLED.print(F("ROM has no keys yet."), 0, 12); OLED.update();
 	}
 	//enc1.setTickMode(AUTO);
 	//enc1.setType(TYPE2);
@@ -152,5 +153,3 @@ void setup() {
 	//Timer1.attachInterrupt(timerIsr);  // запуск таймера
 	//digitalWrite(Luse_Led, !digitalRead(Luse_Led));
 }
-
-
