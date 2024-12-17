@@ -33,6 +33,21 @@ byte keyID[8];                       // ID ключа для записи
 //byte halfT;                          // полупериод для метаком
 byte rom[8]{ 0x1, 0xBE, 0x40, 0x11, 0x5A, 0x36, 0x0, 0xE1 };
 
+bool comparator() {
+	static byte prev_state = COMP_REG;
+	const byte state = COMP_REG;
+	if (state != prev_state) {
+		auto time = uS;
+		while (COMP_REG == state) {
+			if (uS - time > DELAY_COMP) {
+				prev_state = state;
+				return state;
+			}
+		}
+	}
+	return prev_state;
+}
+
 byte indxKeyInROM(const byte(&buf)[8]) {  //возвращает индекс или ноль если нет в ROM
 	uint16_t idx = 0;
 	for (byte count = 1, i; count <= EEPROM_key_count; count++, idx += 8) {  // ищем ключ в eeprom.
