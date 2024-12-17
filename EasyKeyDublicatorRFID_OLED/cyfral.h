@@ -27,13 +27,13 @@ err_t error;
 extern bool comparator();
 void clearVars() { Tp = Ti0 = Ti1 = 0; };
 
-bool recvBitMetakom(const bool state = true)  {
+bool recvBitMetakom(const bool state = true) {
 	auto timer = uS;
 	decltype(timer) t;
 	while (comparator() == state) {
 		if (uS - timer > 200) {
 			error = ERROR_DUTY_HIGH_METAKOM;
-			return false;
+			return !state;
 		}
 	}
 	t = uS;
@@ -43,17 +43,17 @@ bool recvBitMetakom(const bool state = true)  {
 		if (uS - timer > 160) {
 			dutySecond = 160;		//may be synchronise bit
 			error = ERROR_DUTY_LOW_METAKOM;
-			return false;
+			return !state;
 		}
 	}
 	dutySecond = uS - timer;
 	if ((period = dutySecond + dutyFirst) < 50) {
 		error = ERROR_PERIOD_METAKOM;
-		return false;
+		return !state;
 	}
-	if (state) return (dutyFirst > dutySecond);
-	return (dutyFirst < dutySecond);
+	return (dutyFirst > dutySecond);
 }
+
 bool Metakom(byte(&buf)[SIZE]) {
 	register byte count1 = 0, count0 = 0, i, BYTE, bitmask;
 	for (i = 1; i < 5; i++) {
@@ -95,7 +95,7 @@ bool Cyfral(byte(&buf)[SIZE]) {
 again:
 	for (byte i = 1, nibble = 0, bitmask; i < 5; ++i) {
 		for (bitmask = 0b1000; bitmask; bitmask >>= 1) {
-			if (recvBitMetakom(false)) {
+			if (!recvBitMetakom(false)) {
 				nibble |= bitmask;
 				Ti1 += dutyFirst;
 			} else {
@@ -174,7 +174,7 @@ Start:
 				goto Start;
 			}
 		}
-		if ((uS - timer) > dutySecond || recvBitMetakom(false)) {  //duty low from previos read bit Metakom or 0b0_0001
+		if ((uS - timer) > dutySecond || !recvBitMetakom(false)) {  //duty low from previos read bit Metakom or 0b0_0001
 			if (Cyfral(buf)) return keyCyfral;
 			DEBUG(error);
 			continue;
