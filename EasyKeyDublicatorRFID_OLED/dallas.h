@@ -2,8 +2,9 @@
 #include <OneWire.h>
 OneWire ibutton;
 const uint8_t pin_onewire = iButtonPin;
+extern byte buffer[8];
 
-emRWType getRWtype() {	
+emRWType getRWtype() {
 	// TM01 это неизвестный тип болванки, делается попытка записи TM-01 без финализации для dallas или c финализацией под cyfral или metacom
 	// RW1990_1 - dallas-совместимые RW-1990, RW-1990.1, ТМ-08, ТМ-08v2
 	// RW1990_2 - dallas-совместимая RW-1990.2
@@ -73,13 +74,13 @@ bool writeTM2004(const byte(&data)[8]) {  // функция записи на TM
 		//if (0x65 != ibutton.read()) { return false; }     // crc not correct
 		delayMicroseconds(600);
 		ibutton.write_bit(1);
-		delay(50);  
+		delay(50);
 		pinMode(iButtonPin, INPUT);
 		DEBUG('*');//Sd_WriteStep();
-		if (data[i] != ibutton.read()) { 
+		if (data[i] != ibutton.read()) {
 			break;
 		}
-	}while (++i < 8);
+	} while (++i < 8);
 	ibutton.reset();
 	digitalWrite(R_Led, led_state);
 	return i < 8 ? false : true;
@@ -87,8 +88,9 @@ bool writeTM2004(const byte(&data)[8]) {  // функция записи на TM
 
 void convert_MC(byte(&buf)[8]) {
 	byte i, BYTE, bitmask, data;
+	//*(uint64_t*)&buf >>= 4;
 	for (i = 0; i < 5; i++) {
-		data = ~buf[i];
+		data = buf[i] ^ 0xFF;
 		for (BYTE = 0, bitmask = 128; bitmask; bitmask >>= 1, data >>= 1) {
 			if (data & 1) BYTE |= bitmask;
 		}
@@ -98,21 +100,40 @@ void convert_MC(byte(&buf)[8]) {
 	do { buf[i] = 0; } while (++i < 8); //memset(&buf[i], 0, 3);
 }
 
-bool dataBurningOK(byte bitCnt, const byte(&data)[8], byte(&buf)[8]) {
-	if (!ibutton.reset()) return false;
-	ibutton.write(0x33);
-	ibutton.read_bytes(buf, 8);
-	if (bitCnt == 36) convert_MC(buf);
-	for (byte i = 0;;) {
-		DEBUGHEX(buf[i]);
-		if (data[i] != buf[i]) return false;  //compare data
-		if (++i < 8)DEBUG(':'); else break;
+bool read_dallas(byte(&buf)[8]) {
+	auto time = mS;
+	while (!ibutton.search(buf)) {
+		if (mS - time > 10) { return false; }
 	}
 	return true;
 }
 
+bool checkBurningMC(const byte(&data)[8]) {
+	auto time = mS;
+	while (!ibutton.reset()) { if (mS - time > 10) { return false; } }
+	ibutton.write(0x33);
+	for (byte i = 0, BYTE, bitmask;; ++i) {
+		for (BYTE = 0, bitmask = 128; bitmask; bitmask >>= 1) {
+			if (i == 0 && bitmask == _BV(3)) break;
+			if (ibutton.read_bit() == 0) BYTE |= bitmask;
+		}
+		DEBUGHEX(BYTE);
+		if (data[i] != BYTE) return false;  //compare data
+		if (i < 4)DEBUG(':'); else break;
+	}
+}
+
+bool checkBurningDallas(const byte(&data)[8]) {
+	if (!read_dallas(buffer)) return false;
+	for (byte i = 0;; ++i) {
+		DEBUGHEX(buffer[i]);
+		if (data[i] != buffer[i]) return false;  //compare data
+		if (i < 7)DEBUG(':'); else break;
+	}
+}
+
 void BurnByte(byte data) {
-	for (byte bitmask = 0; bitmask; bitmask >>= 1) {
+	for (byte bitmask = 1; bitmask; bitmask <<= 1) {
 		ibutton.write_bit(data & bitmask);
 		delay(5);          // time to writing for every bit up to 10 ms
 	}
@@ -120,95 +141,82 @@ void BurnByte(byte data) {
 }
 
 void BurnByteMC(const byte(&data)[8]) {
-	for (byte n_bit = 0, bitmask = 128; n_bit < 36; n_bit++) {
-		ibutton.write_bit(!((data[n_bit >> 3]) & bitmask));
-		delay(5);  // даем время на прошивку каждого бита 5 мс
-		if ((bitmask >>= 1) == 0) bitmask = 128;
+	for (byte i = 0, bitmask; i < 5; i++) {
+		for (bitmask = 128; bitmask; bitmask >>= 1) {
+			if (i == 0 && bitmask == _BV(3)) break;
+			ibutton.write_bit(!((data[i]) & bitmask));
+			delay(5);  // даем время на прошивку каждого бита 5 мс
+		}
 	}
 	pinMode(iButtonPin, INPUT);
 }
 
-bool writeRW1990_1_2_TM01(const byte(&data)[8], byte(&buf)[8], emRWType rwType) {  // RW1990.1, RW1990.2, TM-01C(F)
-	byte rwCmd, bitCnt = 64, rwFlag = 1;
+bool writeRW1990_1_2_TM01(const byte(&data)[8], emRWType &rwType) {  // RW1990.1, RW1990.2, TM-01C(F)
+	byte Cmd, Flag = 1;
 	switch (rwType) {
-	case TM01:
-		rwCmd = 0xC1;
-		if (keyType > keyDallas) bitCnt = 36;
-		break;  //TM-01C(F)
+	case TM01:	//TM-01C(F)
+		Cmd = 0xC1;
+		break;  
 	case RW1990_1:
-		rwCmd = 0xD1;
-		rwFlag = 0;	// RW1990.1   writing flag is enverted
-		break;                             
-	case RW1990_2: 
-		rwCmd = 0x1D; 
-		break;  // RW1990.2
+		Cmd = 0xD1;
+		Flag = 0;	// RW1990.1   writing flag is enverted
+		break;
+	case RW1990_2:	// RW1990.2
+		Cmd = 0x1D;
+		break;  
 	}
 	ibutton.reset();
-	ibutton.write(rwCmd);       // send 0xD1 - writing command
-	ibutton.write_bit(rwFlag);  // writing flag  1 - enable writing
+	ibutton.write(Cmd);       // send 0xD1 - writing command
+	ibutton.write_bit(Flag);  // writing flag  1 - enable writing
 	delay(5);
 	ibutton.reset();
 	if (rwType == TM01) ibutton.write(0xC5);
 	else ibutton.write(0xD5);  // команда на запись
-	if (bitCnt != 36) {
-		const byte iMax = (bitCnt >> 3), led_state = digitalRead(R_Led);
-		for (byte i = 0, flag = led_state; i < iMax; i++) {
+	if (keyType <= keyDallas) {
+		const byte led_state = digitalRead(R_Led);
+		for (byte i = 0, flag = led_state; i < 8; i++) {
 			digitalWrite(R_Led, flag = !flag);
 			if (rwType == RW1990_1) BurnByte(data[i] ^ 0xFF);  // for RW1990.1 the writing is inverse
 			else BurnByte(data[i]);
 			DEBUG('*');
 			//Sd_WriteStep();
 		}
-		ibutton.write(rwCmd);        // send 0xD1 - writing command
-		ibutton.write_bit(!rwFlag);  // writing flag  1 - disable writing
-		delay(5);
-		digitalWrite(R_Led, led_state);
-	}
-	else BurnByteMC(data);
-	if (dataBurningOK(bitCnt, data, buf) == false) { 
-		return false; 
+		ibutton.write(Cmd);        // send 0xD1 - writing command
+		ibutton.write_bit(!Flag);  // writing flag  1 - disable writing
+		delay(5); digitalWrite(R_Led, led_state);
+		if (!checkBurningDallas(data)) return false;
+	} else {
+		BurnByteMC(data);
+		if (!checkBurningMC(data)) return false;
 	}
 	if (keyType > keyDallas) {  //finalisation	//translate key from dallas format
 		ibutton.reset();
-		if (keyType == keyCyfral) ibutton.write(0xCA);  
-		else ibutton.write(0xCB);                       
+		if (keyType == keyCyfral) ibutton.write(0xCA);
+		else ibutton.write(0xCB);
 		ibutton.write_bit(1); //finalisation flag                        
 	}
 	return true;
 }
 
-bool read_dallas(byte (&buf)[8]) {
-	if (!ibutton.reset()) { return false; }
-	ibutton.read_bytes(buf, 8);
-	return true;
-}
-
-byte write_ibutton(byte(&data)[8]) { 
-	byte buf[8];
-	if (!read_dallas(buf)) { return false; }
+byte write_ibutton(byte(&data)[8]) {
+	if (!read_dallas(buffer)) { return false; }
 	//DEBUG(F("The new key code is: "));
 	for (byte i = 0;;) {
-		DEBUGHEX(buf[i]);
-		if (data[i] != buf[i]) break; // сompare keys
+		DEBUGHEX(buffer[i]);
+		if (data[i] != buffer[i]) break; // сompare keys
 		if (++i < 8) DEBUG(':');
 		else return ERROR_SAME_KEY;// writing not needed
 	}
 	auto type = getRWtype();  // type definition: RW-1990.1 or 1990.2 or TM-01
 	DEBUG(F("\n Burning iButton ID: "));
 	if (type == TM2004) {
-		if (!writeTM2004(data)) {//шьем TM2004
-			return ERROR_COPY;
-		} 
-	} else {
-		if (!writeRW1990_1_2_TM01(data, buf, type)) {//try another format
-			return ERROR_COPY;
-		}
-	}
+		if (!writeTM2004(data)) return ERROR_COPY;
+	} else if (!writeRW1990_1_2_TM01(data, type)) return ERROR_COPY;//try another format
 	return NOERROR;
 }
 
-void SendDallas(byte* buf) {
-	/*  iBtnEmul.init(buf);
+void SendDallas(byte* buffer) {
+	/*  iBtnEmul.init(buffer);
 	//iBtnEmul.waitForRequest(false);
 	uint32_t tStart = millis();
 	do {
