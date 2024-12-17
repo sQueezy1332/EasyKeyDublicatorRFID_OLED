@@ -27,15 +27,17 @@ err_t error;
 extern bool comparator();
 
 bool recvBitMetakom() {
-	uint32_t timer = uS;
+	auto timer = uS;
+	decltype(timer) t;
 	while (comparator()) {
 		if (uS - timer > 200) {
 			error = ERROR_DUTY_HIGH_METAKOM;
 			return false;
 		}
 	}
-	dutyFirst = uS - timer;
-	timer = uS;
+	t = uS;
+	dutyFirst = t - timer;
+	timer = t;
 	while (!comparator()) {
 		if (uS - timer > 160) {
 			dutySecond = 160;		//may be synchronise bit
@@ -130,7 +132,7 @@ byte KeyDetection(byte(&buf)[SIZE]) {
 	register byte startNibble, bitmask;
 	word startPeriod;
 	auto timerEnd = mS;
-	auto timer = timerEnd;
+	decltype(timerEnd) timer;
 Start:
 	while (mS - timerEnd < 10) {
 		error = NO_ERROR;
@@ -147,7 +149,7 @@ Start:
 				//		return false;
 				//	}
 				//}
-				error = ERROR_SYNC_BIT; DEBUG(error);
+				//error = ERROR_SYNC_BIT; DEBUG(error);
 				goto Start;
 			}
 		}
