@@ -49,9 +49,9 @@ bool comparator() {
 	static byte prev_state = COMP_REG;
 	byte state = COMP_REG;
 	if (state != prev_state) {
-		auto time = micros();
+		auto time = uS;
 		while (COMP_REG == state) {
-			if (micros() - time > DELAY_COMP) { 
+			if (uS - time > DELAY_COMP) {
 				prev_state = state;
 				return state; 
 			}
@@ -63,14 +63,14 @@ bool comparator() {
 byte recvbit_rfid(uint16_t timeOut = 7000) {  // pulse 0 or 1 or -1 if timeout
 	byte state, initState;
 	initState = comparator();  // читаем флаг компаратора
-	auto time = micros();
+	auto time = uS;
 	do {
 		state = comparator();
 		if (state != initState) { //AcompState = COMPARATOR;  // читаем флаг компаратора
-			for (time = micros(); comparator() == state && (micros() - time < rfidHalfbit)););
+			for (time = uS; comparator() == state && (uS - time < rfidHalfbit)););
 			return state ? 1 : 0;
 		}
-	} while ((micros() - time) < timeOut);
+	} while ((uS - time) < timeOut);
 	return ERROR_RFID_TIMEOUT;  //таймаут, компаратор не сменил состояние
 }
 
