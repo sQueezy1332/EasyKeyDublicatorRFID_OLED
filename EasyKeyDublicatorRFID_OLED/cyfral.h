@@ -29,14 +29,13 @@ void clearVars() { Tp = Ti0 = Ti1 = 0; };
 
 bool recvBitMetakom(const bool state = true) {
 	auto timer = uS;
-	decltype(timer) t;
 	while (comparator() == state) {
 		if (uS - timer > 200) {
 			error = ERROR_DUTY_HIGH_METAKOM;
 			return false;
 		}
 	}
-	t = uS;
+	auto t = uS;
 	dutyFirst = t - timer;
 	timer = t;
 	while (comparator() == !state) {
@@ -51,7 +50,7 @@ bool recvBitMetakom(const bool state = true) {
 		error = ERROR_PERIOD_METAKOM;
 		return false;
 	}
-	if(state) return (dutyFirst > dutySecond);
+	if (state) return (dutyFirst > dutySecond);
 	return (dutyFirst < dutySecond);
 }
 
