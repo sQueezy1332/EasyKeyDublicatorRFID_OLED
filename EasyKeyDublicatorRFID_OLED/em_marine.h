@@ -1,6 +1,6 @@
 #pragma once
 extern byte buffer[8];
-
+extern bool comparator();
 byte columnParity(const byte(&buf)[8]) {
 	byte i = 5, result = 0, temp;
 	do {
@@ -43,21 +43,6 @@ void rfidACsetOn() { //включаем генератор 125кГц
 	ADCSRB &= ~_BV(ACME);  // отключаем мультиплексор AC
 	ACSR &= ~_BV(ACBG);    // отключаем от входа Ain0 1.1V
 	delay(10);       //13 мс длятся переходные процессы детектора
-}
-
-bool comparator() {
-	static byte prev_state = COMP_REG;
-	byte state = COMP_REG;
-	if (state != prev_state) {
-		auto time = uS;
-		while (COMP_REG == state) {
-			if (uS - time > DELAY_COMP) {
-				prev_state = state;
-				return state; 
-			}
-		}
-	}
-	return prev_state;
 }
 
 byte recvbit_rfid(uint16_t timeOut = 7000) {  // pulse 0 or 1 or -1 if timeout
