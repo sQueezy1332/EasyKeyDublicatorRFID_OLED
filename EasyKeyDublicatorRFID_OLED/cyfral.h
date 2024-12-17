@@ -33,7 +33,7 @@ bool recvBitMetakom(const bool state = true) {
 	while (comparator() == state) {
 		if (uS - timer > 200) {
 			error = ERROR_DUTY_HIGH_METAKOM;
-			return false;
+			return !state;
 		}
 	}
 	t = uS;
@@ -43,13 +43,13 @@ bool recvBitMetakom(const bool state = true) {
 		if (uS - timer > 160) {
 			dutySecond = 160;		//may be synchronise bit
 			error = ERROR_DUTY_LOW_METAKOM;
-			return false;
+			return !state;
 		}
 	}
 	dutySecond = uS - timer;
 	if ((period = dutySecond + dutyFirst) < 50) {
 		error = ERROR_PERIOD_METAKOM;
-		return false;
+		return !state;
 	}
 	return (dutyFirst > dutySecond);
 }
@@ -98,8 +98,8 @@ again:
 			if (!recvBitMetakom(false)) {
 				nibble |= bitmask;
 				Ti1 += dutyFirst;
-				if (error) return false;
 			} else {
+				if (error) return false;
 				Ti0 += dutyFirst;
 			}
 			Tp += period;
