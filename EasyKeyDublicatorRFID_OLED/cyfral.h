@@ -25,11 +25,12 @@ typedef enum : uint8_t {
 err_t error;
 
 extern bool comparator();
+void clearVars() { Tp = Ti0 = Ti1 = 0; };
 
-bool recvBitMetakom() {
+bool recvBitMetakom(const bool state = true) {
 	auto timer = uS;
 	decltype(timer) t;
-	while (comparator()) {
+	while (comparator() == state) {
 		if (uS - timer > 200) {
 			error = ERROR_DUTY_HIGH_METAKOM;
 			return false;
@@ -38,7 +39,7 @@ bool recvBitMetakom() {
 	t = uS;
 	dutyFirst = t - timer;
 	timer = t;
-	while (!comparator()) {
+	while (comparator() == !state) {
 		if (uS - timer > 160) {
 			dutySecond = 160;		//may be synchronise bit
 			error = ERROR_DUTY_LOW_METAKOM;
@@ -57,7 +58,7 @@ bool Metakom(byte(&buf)[SIZE]) {
 	register byte count1 = 0, count0 = 0, i, BYTE, bitmask;
 	for (i = 1; i < 5; i++) {
 		for (BYTE = 0, bitmask = 128; bitmask; bitmask >>= 1) {
-			if (recvBitMetakom()) {
+			if (recvBitMetakom(true)) {
 last_bit:
 				BYTE |= bitmask;
 				Ti1 += dutyFirst;
@@ -94,12 +95,11 @@ bool Cyfral(byte(&buf)[SIZE]) {
 again:
 	for (byte i = 1, nibble = 0, bitmask; i < 5; ++i) {
 		for (bitmask = 0b1000; bitmask; bitmask >>= 1) {
-			if (!recvBitMetakom()) {
+			if (!recvBitMetakom(false)) {
 				nibble |= bitmask;
 				Ti1 += dutyFirst;
-			} else {
 				if (error) return false;
-				
+			} else {
 				Ti0 += dutyFirst;
 			}
 			Tp += period;
@@ -113,6 +113,7 @@ again:
 			nibble <<= 4;
 			continue;
 		case 0x1:
+			clearVars();
 			goto again;
 		default:
 			error = ERROR_NIBBLE_CYFRAL;
@@ -135,10 +136,11 @@ byte KeyDetection(byte(&buf)[SIZE]) {
 	decltype(timerEnd) timer;
 Start:
 	while (mS - timerEnd < 10) {
-		error = NO_ERROR;
 		if (comparator()) { continue; } //wait until high signal is start
 		timer = uS;
-		timerEnd += 10;	
+		timerEnd += 10;
+		error = NO_ERROR;
+		clearVars();
 		while (!comparator()) {			//Try read METAKOM synchronise bit log 0
 			if (uS - timer > 450) {		//50 - 230 datasheet ~400 for last bit + synchro	
 				//timer = mS;
@@ -160,7 +162,7 @@ Start:
 			if (startNibble > METAKOM || error)
 				goto Start;
 		}
-		if (startNibble == METAKOM && startPeriod + 10 >= period) {
+		if (startNibble == METAKOM && (startPeriod + 10 >= period)) {
 			if (Metakom(buf)) return keyMetacom;
 			DEBUG(error);
 			continue;
@@ -172,7 +174,7 @@ Start:
 				goto Start;
 			}
 		}
-		if ((uS - timer) > dutySecond || !recvBitMetakom()) {  //duty low from previos read bit Metakom or 0b0_0001
+		if ((uS - timer) > dutySecond || !recvBitMetakom(false)) {  //duty low from previos read bit Metakom or 0b0_0001
 			if (Cyfral(buf)) return keyCyfral;
 			DEBUG(error);
 			continue;
