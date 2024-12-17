@@ -27,15 +27,16 @@ err_t error;
 extern bool comparator();
 void clearVars() { Tp = Ti0 = Ti1 = 0; };
 
-bool recvBitMetakom(const bool state = true) {
+bool recvBitMetakom(const bool state = true)  {
 	auto timer = uS;
+	decltype(timer) t;
 	while (comparator() == state) {
 		if (uS - timer > 200) {
 			error = ERROR_DUTY_HIGH_METAKOM;
 			return false;
 		}
 	}
-	auto t = uS;
+	t = uS;
 	dutyFirst = t - timer;
 	timer = t;
 	while (comparator() == !state) {
@@ -53,7 +54,6 @@ bool recvBitMetakom(const bool state = true) {
 	if (state) return (dutyFirst > dutySecond);
 	return (dutyFirst < dutySecond);
 }
-
 bool Metakom(byte(&buf)[SIZE]) {
 	register byte count1 = 0, count0 = 0, i, BYTE, bitmask;
 	for (i = 1; i < 5; i++) {
