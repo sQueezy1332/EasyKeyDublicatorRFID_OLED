@@ -46,16 +46,15 @@ void rfidACsetOn() { //включаем генератор 125кГц
 }
 
 byte recvbit_rfid(uint16_t timeOut = 7000) {  // pulse 0 or 1 or -1 if timeout
-	byte state, initState;
-	initState = comparator();  // читаем флаг компаратора
+	bool state, initState = comparator();  // читаем флаг компаратора
 	auto time = uS;
 	do {
 		state = comparator();
 		if (state != initState) { //AcompState = COMPARATOR;  // читаем флаг компаратора
 			for (time = uS; comparator() == state && (uS - time < rfidHalfbit)););
-			return state ? 1 : 0;
+			return state;
 		}
-	} while ((uS - time) < timeOut);
+	} while (uS - time < timeOut);
 	return ERROR_RFID_TIMEOUT;  //таймаут, компаратор не сменил состояние
 }
 
@@ -249,3 +248,4 @@ void rfid_decode(const byte(&data)[8], byte(&buf)[8]) {
 		buf[i] = BYTE;
 	}
 }
+
