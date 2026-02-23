@@ -81,7 +81,7 @@ byte readEM_Marine(byte(&buf)[8]/*, size_t timeout = 64*/) {
 	//auto timestamp = mS;
 	byte bit = NOERROR, i, nibble, bitmask, par, result;
 again:
-	if (bit > ERROR_RFID_COMP_TIMEOUT) { do_something(bit); }
+	 { do_something(bit); }
 	//if (mS - timestamp > timeout) return bit;
 	for (i = 0; i < 9; i++) { //9 ones preambula
 		bit = rfid_recvbit();
@@ -101,7 +101,8 @@ again:
 			//if (nibble % 5 == 4) {
 			if ((nibble == 5 -1) || (nibble == 10 -1)) {
 				if (par) {
-					bit = ERROR_RFID_PARITY_ROW; goto again;
+					bit = ERROR_RFID_PARITY_ROW; 
+					goto again;
 				}
 				continue;
 			}
@@ -118,9 +119,11 @@ again:
 		}
 	}
 	//if ((result & 1) != 0) return ERROR_RFID_STOP_BIT;
-	if (result != (column_parity(buf) << 1)) { //also stop bit checked
-		bit = ERROR_RFID_PARITY_COL; goto again;
-	}	 
+	if (result != (column_parity(buf)) >> 1) { //also stop bit check
+		//bit = ERROR_RFID_PARITY_COL; 
+		//goto again;
+		buf[0] = result; return NOERROR;
+	}
 	buf[0] = 0xFF;	//em marine tag
 	return NOERROR;
 }
