@@ -111,7 +111,7 @@ again:
 		}
 		buf[i] = result;
 	}
-	for (bitmask = _BV(5-1), result = 0; bitmask; bitmask >>= 1) {//column parity and stop bit
+	for (bitmask = _BV(5-1), result = 0; bitmask != 1 /*skip stop bit*/; bitmask >>= 1) {
 		bit = rfid_recvbit();
 		if (bit) {
 			if (bit > 1) return bit;
