@@ -2,17 +2,20 @@
 //#include <OneWireSlave.h>
 #include <EEPROM.h>
 #include <OLED_I2C.h>
+//const boolean _use_hw = true;
 //#include "GyverEncoder.h"
-#include "TimerOne.h"
+#define USE_MICRO_WIRE
+#include <microWire.h>
+#include <GyverOLED.h>
 
 #include "DualFunctionButton.h"	
 #include "defines.h"
-//#include "cyfral.h"
+#include "cyfral.h"
 #include "dallas.h"
 #include "em_marine.h"
-//OLED _OLED(SDA, SCL);
-const boolean _use_hw = true;
-OLED _OLED;
+//OLED OLED(SDA, SCL);
+
+GyverOLED <SSH1106_128x64, OLED_NO_BUFFER, OLED_I2C> OLED;
 extern uint8_t SmallFont[];
 extern uint8_t BigNumbers[];
 //uint32_t stTimer;
@@ -31,17 +34,15 @@ byte EEPROM_key_index = 0;           // 1..EEPROM_key_count номер посл�
 byte buffer[8];                        // временный буфер
 byte keyID[8];                       // ID ключа для записи
 //byte halfT;                          // полупериод для метаком
-byte rom[8]{ 0x1, 0xBE, 0x40, 0x11, 0x5A, 0x36, 0x0, 0xE1 };
+//byte rom[8]{ 0x1, 0xBE, 0x40, 0x11, 0x5A, 0x36, 0x0, 0xE1 };
 
 bool comparator() {
 	static byte prev_state = COMP_REG;
 	const byte state = COMP_REG;
 	if (state != prev_state) {
-		auto time = uS;
-		while (COMP_REG == state) {
+		for (auto time = uS; COMP_REG == state; ) {
 			if (uS - time > DELAY_COMP) {
-				prev_state = state;
-				return state;
+				return prev_state = state;
 			}
 		}
 	}
@@ -83,49 +84,52 @@ void OLED_printKey(const byte(&buf)[8], bool keyIndex = false) {
 		str += index;  str += " index";
 		}
 	}
-		_OLED.clrScr(); _OLED.print(str, 0, 0); DEBUGLN(str);
-	str = "";
-	for (byte temp, i = (keyType == keyEM_Marine) ? 5 : 7;; --i) {
-		if(i == 0 && keyType == keyEM_Marine) break;
-		temp = buf[i]; 
-		if ((temp & 0xF0) == 0) str += '0';
-		str += String(temp, HEX);
-		if (i != 0) str += ':'; else break;
+	//OLED.clrScr(); OLED.print(str, 0, 0); DEBUGLN(str);
+	str.reserve(3 * 8); 
+	{	char* c = str.begin();
+			for (byte temp, i = (keyType == keyEM_Marine) ? 5 : 7;; --i, c+=3) {
+				if (i == 0 && keyType == keyEM_Marine) break;
+				temp = buf[i];
+				if ((temp & 0xF0) == 0) *c = '0';
+				utoa(temp, &c[(temp & 0xF0) ? 0 : 1], HEX);
+				if (i != 0) c[2] = ':'; else break;
+			}
 	}
 	if ((keyType == keyDallas) && (ibutton.crc8(buf, 7) != buf[7])) { str += "\t !CRC"; }
-		_OLED.print(str, 0, 12); DEBUGLN(str);
+		//OLED.print(str, 0, 12); DEBUGLN(str);
 	str = "Type ";
 	switch (keyType) {
-	case keyDallas: str += "Dallas"; break;
-	case keyCyfral: str += "Cyfral"; break;
-	case keyMetacom: str += "Metakom"; break;
-	case keyEM_Marine: str += "EM_Marine"; break;
-	case keyUnknown: str += "Unknown"; break;
+	case keyDallas: str += F("Dallas"); break;
+	case keyCyfral: str += F("Cyfral"); break;
+	case keyMetacom: str += F("Metakom"); break;
+	case keyEM_Marine: str += F("EM_Marine"); break;
+	case keyUnknown: str += F("UNKNOWN"); break;
 	}
-		_OLED.print(str, 0, 24); DEBUGLN(str);
-		_OLED.update();
+		//OLED.print(str, 0, 24); DEBUGLN(str);
+		//OLED.update();
 }
 
 void OLEDprint_error(byte err = 0) {
 	//digitalWrite(R_Led, LOW);
 	String str;
-	//_OLED.clrScr(); //,'
+	//OLED.clrScr(); //,'
 	if(err == NOERROR)str = F("Success");
 	else {
 		str = F("ERROR_");
 		switch (err) {
 		case ERROR_COPY: str += F("COPY");  break;
 		case ERROR_UNKNOWN_KEY: str += F("UNKNOWN"); str += F("_KEY"); break;
-		case ERROR_SAME_KEY: str += F("SAME"); str += F("_KEY"); break;
+		case SAME_KEY: str += F("SAME"); str += F("_KEY"); break;
 		case ERROR_RFID_TIMEOUT: str += F("RFID_TIMEOUT"); break;
-		case ERROR_RFID_READ_TIMEOT: str += F("RFID_READ_TIMEOT"); break;
-		case ERROR_RFID_PARITY: str += F("RFID_PARITY"); break;
+		case ERROR_RFID_HEADER: str += F("RFID_HEADER"); break;
+		case ERROR_RFID_PARITY_ROW: str += F("PARITY_ROW"); break;
+		case ERROR_RFID_PARITY_COL: str += F("PARITY_COL"); break;
 		}
 		str += "\t# "; str += err;
 	}
 	DEBUGLN(str);
-	_OLED.print(str, 0, 24);
-	_OLED.update();
+	//OLED.print(str, 0, 24);
+	//OLED.update();
 	//if (err) {Sd_ErrorBeep();}
 	//else { Sd_ReadOK(); }
 	//digitalWrite(R_Led, HIGH);
