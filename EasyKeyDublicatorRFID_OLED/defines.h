@@ -10,11 +10,18 @@
 #define DEBUGLN(x)
 #endif
 //settings
+#define SIZE 8
 #define rfidUsePWD 0    // ключ использует пароль для изменения
 #define rfidPWD 123456  // пароль для ключа
-#define rfidBitRate 2   // Скорость обмена с rfid в kbps
-#define COMPARATOR (ACSR & _BV(ACO))
-#define TIMER2MASK (_BV(COM2A0) | _BV(COM2B1) | _BV(WGM21) | _BV(WGM20))
+#define RFID_BIT_PERIOD 64   // Скорость обмена с rfid в kbps
+#define RFID_HALFBIT (1000 / (125 / (RFID_BIT_PERIOD / 2.f)))
+//#define COMP_REG (ACSR & _BV(ACO))
+#define COMP_PIN (2)
+#define COMP_REG (digitalRead(COMP_PIN))
+#define DELAY_COMP (50)
+#define TIMER2MASK (_BV(COM2A0) | _BV(WGM21) | _BV(WGM20))
+#define uS micros()
+#define mS millis()
 //pins
 #define iButtonPin PIN_A3   // Линия data ibutton	
 #define Luse_Led 13     // Светодиод лузы
@@ -59,17 +66,19 @@ enum emRWType : uint8_t {
 
 enum error_t : uint8_t {
 	NOERROR = 0,
+	
 	KEY_SAVED,
+	SAME_KEY,
 	ERROR_READ,
 	ERROR_COPY,
 	ERROR_UNKNOWN_KEY,
-	ERROR_SAME_KEY,
-	ERROR_RFID_TIMEOUT,
-	ERROR_RFID_HEADER_TIMEOUT,
-	ERROR_RFID_PARITY_ROW,
-	ERROR_RFID_PARITY_COL,
-	ERROR_RFID_STOP_BIT,
+	ERROR_RFID_TIMEOUT = 'A', //A
+	ERROR_RFID_COMP_TIMEOUT, //B
+	ERROR_RFID_HEADER, //C
+	ERROR_RFID_PARITY_ROW, //D
+	ERROR_RFID_PARITY_COL, //E
+	ERROR_RFID_STOP_BIT, //F
 };
 
-key_type keyType;
+byte keyType;
 myMode Mode = md_empty;
