@@ -119,7 +119,7 @@ again:
 		}
 	}
 	//if ((result & 1) != 0) return ERROR_RFID_STOP_BIT;
-	if (result != (column_parity(buf)) >> 1) { //also stop bit check
+	if (result != (column_parity(buf)) << 1) { //also stop bit check
 		//bit = ERROR_RFID_PARITY_COL; 
 		//goto again;
 		buf[0] = result; return NOERROR;
