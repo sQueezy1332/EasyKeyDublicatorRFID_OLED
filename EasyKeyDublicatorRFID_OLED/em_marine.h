@@ -171,9 +171,13 @@ void sendOpT5557(byte opCode, uint32_t data = 0, byte blokAddr = 1, uint32_t pas
 	// password
 	TxBitRfid(lockBit);		// lockbit 0
 	if (data != 0) {
-		for (uint32_t bitmask = (1ul << 31); bitmask; bitmask >>= 1) { TxBitRfid(data & bitmask); }
+		for (uint32_t bitmask = (1ul << 31); bitmask; bitmask >>= 1) { 
+			TxBitRfid(data & bitmask); 
+		}
 	}
-	for (byte bitmask = _BV(3); bitmask; bitmask >>= 1) { TxBitRfid(blokAddr & bitmask); }
+	for (byte bitmask = _BV(3); bitmask; bitmask >>= 1) { 
+		TxBitRfid(blokAddr & bitmask); 
+	}
 	delay(10);                 // ждем пока пишутся данные
 }
 
@@ -207,7 +211,7 @@ emRWType getRfidRWtype() {
 	delay(4);
 	if (data32 != data33) return Unknown;
 	DEBUG(F(" The rfid RW-key is T5557. Vendor ID is "));
-	DEBUGHEX(data32); DEBUGLN();
+	DEBUGLN(data32, HEX);
 	return T5557;
 }
 
