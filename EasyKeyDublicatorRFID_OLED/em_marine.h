@@ -3,8 +3,6 @@ extern bool comparator();
 byte keyCompare(const byte []);
 byte column_parity(const byte buf[8]);
 
-extern void do_something(byte err);
-
 byte column_parity(const byte buf[8]) {
 	byte i = 5, result = 0, temp;
 	do {
@@ -53,9 +51,8 @@ inline void rfid_enable() {
 
 void rfid_init() { //включаем генератор 125кГц
 	rfid_enable();
-	TCCR2B = _BV(WGM22) | _BV(CS20);								// mode 7: Fast PWM //divider 1 (no prescaling)
-	OCR2A = 63;														// 63 тактов на период. Частота на COM2A (pin 11) 16000/64/2 = 125 кГц, Скважнось COM2A в этом режиме всегда 50%
-	//OCR2B = 31;														// Скважность COM2B 32/64 = 50%  Частота на COM2A (pin 3) 16000/64 = 250 кГц
+	TCCR2B = _BV(WGM22) | _BV(CS20);		 // mode 7: Fast PWM //divider 1 (no prescaling)
+	OCR2A = (F_CPU / 1 / 125000 / 2) -1;
 	// включаем компаратор
 	ADCSRB &= ~_BV(ACME);  // отключаем мультиплексор AC
 	ACSR &= ~_BV(ACBG);    // отключаем от входа Ain0 1.1V
@@ -69,9 +66,9 @@ byte rfid_recvbit(size_t timeOut = RFID_HALFBIT * 4) {
 		const auto secondHalf = comparator();
 		if (secondHalf != firstHalf) { 
 			for (time = uS; comparator() == secondHalf;) {
-				if (uS - time > int(RFID_HALFBIT * 1.5)) break;
+				if (uS - time > size_t(RFID_HALFBIT * 1.5)) break;
 			};
-			return !secondHalf;
+			return secondHalf;
 		}
 	} while (uS - time < timeOut);
 	return ERROR_RFID_COMP_TIMEOUT;  //comparator dont changed state
@@ -81,13 +78,13 @@ byte readEM_Marine(byte(&buf)[8]/*, size_t timeout = 64*/) {
 	//auto timestamp = mS;
 	byte bit = NOERROR, i, nibble, bitmask, par, result;
 again:
-	 { do_something(bit); }
+	//extern void do_something(byte err); do_something(bit);
 	//if (mS - timestamp > timeout) return bit;
 	for (i = 0; i < 9; i++) { //9 ones preambula
 		bit = rfid_recvbit();
 		if (bit > 1) return bit;
 		if (bit == 0) { 
-			bit = ERROR_RFID_HEADER; 
+			//bit = ERROR_RFID_HEADER; 
 			goto again;
 		}
 	}
@@ -101,7 +98,7 @@ again:
 			//if (nibble % 5 == 4) {
 			if ((nibble == 5 -1) || (nibble == 10 -1)) {
 				if (par) {
-					bit = ERROR_RFID_PARITY_ROW; 
+					//bit = ERROR_RFID_PARITY_ROW; 
 					goto again;
 				}
 				continue;
@@ -111,7 +108,7 @@ again:
 		}
 		buf[i] = result;
 	}
-	for (bitmask = _BV(5-1), result = 0; bitmask != 1 /*skip stop bit*/; bitmask >>= 1) {
+	for (bitmask = _BV(5 -1), result = 0; bitmask != 1 /*skip stop bit*/; bitmask >>= 1) {
 		bit = rfid_recvbit();
 		if (bit) {
 			if (bit > 1) return bit;
@@ -119,9 +116,11 @@ again:
 		}
 	}
 	//if ((result & 1) != 0) return ERROR_RFID_STOP_BIT;
-	if (result != (column_parity(buf)) << 1) { //also stop bit check
+	byte _par = column_parity(buf);
+	if (result != (_par << 1)) { //also stop bit check
 		//bit = ERROR_RFID_PARITY_COL; 
 		//goto again;
+		result <<= 3; result |= _par; //readed parity | calc parity
 		buf[0] = result; return NOERROR;
 	}
 	buf[0] = 0xFF;	//em marine tag
