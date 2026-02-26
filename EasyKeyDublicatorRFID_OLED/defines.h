@@ -1,13 +1,11 @@
 #pragma once
 #define DEBUG_ENABLE
 #ifdef DEBUG_ENABLE
-#define DEBUG(x) Serial.print(x)
-#define DEBUGHEX(x) Serial.print(x, HEX)
-#define DEBUGLN(x) Serial.println(x)
+#define DEBUG(x, ...) Serial.print(x, ##__VA_ARGS__)
+#define DEBUGLN(x, ...) Serial.println(x, ##__VA_ARGS__)
 #else
-#define DEBUG(x)
-#define DEBUGHEX(x)
-#define DEBUGLN(x)
+#define DEBUG(x, ...)
+#define DEBUGLN(x, ...)
 #endif
 //settings
 #define SIZE 8
@@ -17,8 +15,8 @@
 #define RFID_HALFBIT (1000 / (125 / (RFID_BIT_PERIOD / 2.f)))
 //#define COMP_REG (ACSR & _BV(ACO))
 #define COMP_PIN (2)
-#define COMP_REG (digitalRead(COMP_PIN))
-#define DELAY_COMP (50)
+#define COMP_REG (!digitalRead(COMP_PIN))
+#define DELAY_COMP (RFID_HALFBIT / 8)
 #define TIMER2MASK (_BV(COM2A0) | _BV(WGM21) | _BV(WGM20))
 #define uS micros()
 #define mS millis()
