@@ -23,10 +23,7 @@ extern uint8_t BigNumbers[];
 DualFunctionButton BtnOK(BtnOKPin, 2000, INPUT_PULLUP);
 DualFunctionButton BtnErase(BtnOKPin, 5000, INPUT_PULLUP);
 DualFunctionButton BtnUp(BtnUpPin, 2000, INPUT_PULLUP);
-DualFunctionButton BtnDown(BtnDownPin, 2000, INPUT_PULLUP);
-
-extern void rfid_emul_high_impl() { pinMode(FreqGen, INPUT); };
-extern void rfid_emul_low_impl() { pinMode(FreqGen, OUTPUT); };
+DualFunctionButton BtnDown(BtnDownPin, 2000, INPUT_PULLUP);;
 //Encoder enc1(CLK, DT, BtnPin);
 
 //OneWireSlave iBtnEmul(iBtnEmulPin);  //Эмулятор iButton для BlueMode
@@ -53,6 +50,9 @@ bool op_amp() {
 	}
 	return prev_state;
 }
+
+void rfid_emul_high_impl() { pinMode(FreqGen, INPUT); };
+void rfid_emul_low_impl() { pinMode(FreqGen, OUTPUT); }
 
 void rfid_pwm_disable() {
 	TCCR2A = 0; pinMode(FreqGen, INPUT); /*digitalWrite(FreqGen, LOW);*/// Оключить ШИМ COM2A(pin 11)
@@ -245,4 +245,5 @@ void ACsetOn() {
 	digitalWrite(G_Led, LOW);
 	digitalWrite(B_Led, LOW);
 }*/
+
 
