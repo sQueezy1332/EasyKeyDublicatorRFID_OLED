@@ -1,5 +1,11 @@
 #pragma once
-extern bool comparator();
+extern bool op_amp();
+extern void rfid_emul_high_impl();
+extern void rfid_emul_low_impl();
+extern void rfid_pwm_disable();
+extern void rfid_pwm_enable();
+extern byte Buffer[8];
+
 byte keyCompare(const byte []);
 byte column_parity(const byte buf[8]);
 
@@ -41,37 +47,19 @@ void EM_Marine_decode(const uint8_t data[8], uint8_t buf[8]) {
 	}
 }
 
-inline void rfid_disable() {
-	TCCR2A = 0; pinMode(FreqGen, INPUT); // Оключить ШИМ COM2A(pin 11)
-}
-
-inline void rfid_enable() {
-	pinMode(FreqGen, OUTPUT); TCCR2A = TIMER2MASK;  //Toggle on Compare Match on COM2A (pin 11) и счет таймера2 до OCR2A
-}
-
-void rfid_init() { //включаем генератор 125кГц
-	rfid_enable();
-	TCCR2B = _BV(WGM22) | _BV(CS20);		 // mode 7: Fast PWM //divider 1 (no prescaling)
-	OCR2A = (F_CPU / 1 / 125000 / 2) -1;
-	// включаем компаратор
-	ADCSRB &= ~_BV(ACME);  // отключаем мультиплексор AC
-	ACSR &= ~_BV(ACBG);    // отключаем от входа Ain0 1.1V
-	delay(10);       //13 мс длятся переходные процессы детектора
-}
-
 byte rfid_recvbit(size_t timeOut = RFID_HALFBIT * 4) {
-	const auto firstHalf = comparator(); 
+	const auto firstHalf = op_amp();
 	auto time = uS;
 	do {
-		const auto secondHalf = comparator();
+		const auto secondHalf = op_amp();
 		if (secondHalf != firstHalf) { 
-			for (time = uS; comparator() == secondHalf;) {
-				if (uS - time > size_t(RFID_HALFBIT * 1.5)) break;
+			for (time = uS; op_amp() == secondHalf;) {
+				if (uS - time > size_t(RFID_HALFBIT * 1.2)) break;  //1.5
 			};
 			return secondHalf;
 		}
 	} while (uS - time < timeOut);
-	return ERROR_RFID_COMP_TIMEOUT;  //comparator dont changed state
+	return ERROR_RFID_COMP_TIMEOUT;  //op_amp dont changed state
 }
 
 byte readEM_Marine(byte(&buf)[8]/*, size_t timeout = 64*/) {
@@ -108,7 +96,7 @@ again:
 		}
 		buf[i] = result;
 	}
-	for (bitmask = _BV(5 -1), result = 0; bitmask != 1 /*skip stop bit*/; bitmask >>= 1) {
+	for (bitmask = 0b10000, result = 0; bitmask != 1 /*skip stop bit*/; bitmask >>= 1) {
 		bit = rfid_recvbit();
 		if (bit) {
 			if (bit > 1) return bit;
@@ -127,20 +115,22 @@ again:
 	return NOERROR;
 }
 
-void rfidGap(uint16_t time) {
-	rfid_disable();
+void rfidGap(size_t time) {
+	rfid_pwm_disable();
 	delayMicroseconds(time);
-	rfid_enable();  // Включить ШИМ COM2A (pin 11)
+	rfid_pwm_enable(); 
 }
 
 void TxBitRfid(bool bit) {
-	//if (bit) delayMicroseconds(54*8);  
-	//if (bit) delayMicroseconds(49 * 8);	//392 - стало писать говеные 5577 // 432 родные значения
-	//									//else delayMicroseconds(24*8);      // 192 родные значения
-	//else delayMicroseconds(19 * 8);		//152 
-	if (bit) delayMicroseconds(30 * 8);	//240
-	delayMicroseconds(15 * 8);		//120
-	rfidGap(30 * 8);				//write gap 32
+	//if (bit) delayMicroseconds(24 * 8 + 240);//432
+	//delayMicroseconds(24*8);			//192 
+	if (bit) delayMicroseconds(19 * 8 + 240);//392
+	delayMicroseconds(19 * 8); //152
+	rfidGap(19 * 8); //old
+	
+	//if (bit) delayMicroseconds(30 * 8);	//240
+	//delayMicroseconds(15 * 8);		//120
+	//rfidGap(32 * 8);				//write gap 32
 }
 
 void TxByteRfid(byte data) {
@@ -150,12 +140,11 @@ void TxByteRfid(byte data) {
 }
 
 bool T5557_blockRead(uint32_t& buf) {
-	byte ti = rfid_recvbit(2000);
-	if (ti != 0) return false; 
-	buf = 0;//пишем в буфер начиная с 1-го бита // если не находим стартовый 0 - это ошибка
-	for (uint32_t bitmask = 1ul << 31; bitmask; bitmask >>= 1) {  // читаем стартовый 0 и 32 значащих bit
-		ti = rfid_recvbit(2000);
-		if (ti) {
+	byte ti = rfid_recvbit(2000); //read start 0
+	if (ti != 0) return false;
+	buf = 0;	//write from msb, if not find start 0 - its error
+	for (uint32_t bitmask = 1ul << 31; bitmask; bitmask >>= 1) {
+		if (ti = rfid_recvbit(2000)) {
 			if (ti > 1) return false;  //timeout
 			buf |= bitmask;
 		}
@@ -163,8 +152,8 @@ bool T5557_blockRead(uint32_t& buf) {
 	return true;
 }
 
-void sendOpT5557(byte opCode, uint32_t data = 0, byte blokAddr = 1, uint32_t password = 0, byte lockBit = 0) {
-	rfidGap(32 * 8);
+void sendOpT5557(byte opCode, uint32_t data = 0, byte addr = 1, byte lockBit = 0, uint32_t password = 0) {
+	rfidGap(32 * 8); //30 old
 	TxBitRfid(opCode >> 1);
 	TxBitRfid(opCode & 1);  // передаем код операции 10
 	if (opCode == 0) return;
@@ -176,22 +165,24 @@ void sendOpT5557(byte opCode, uint32_t data = 0, byte blokAddr = 1, uint32_t pas
 		}
 	}
 	for (byte bitmask = _BV(3); bitmask; bitmask >>= 1) { 
-		TxBitRfid(blokAddr & bitmask); 
+		TxBitRfid(addr & bitmask);
 	}
-	delay(10);                 // ждем пока пишутся данные
+	delay(4);              // ждем пока пишутся данные
 }
 
 byte write_T5557(const byte data[8]) {
+	EM_Marine_encode(data, Buffer);
+	delay(4);
 	//start gap 30
-	sendOpT5557(0b10, ((uint32_t*)&data)[1], 0x1);		//передаем 32 бита ключа в block ones
-	sendOpT5557(0b10, ((uint32_t*)&data)[0], 0x2);
+	sendOpT5557(0b10, ((uint32_t*)Buffer)[1], 0x1);		//передаем 32 бита ключа в block ones
+	sendOpT5557(0b10, ((uint32_t*)Buffer)[0], 0x2);
 	//DEBUG('*');
 	//start gap 30
 	sendOpT5557(0b0);
-	delay(4);
-	if (keyCompare(data) != SAME_KEY) return ERROR_COPY;
+	byte err = keyCompare(data);
+	if (err) { DEBUGLN(err); }
 	//digitalWrite(R_Led, HIGH);
-	return NOERROR;
+	return err;
 }
 
 emRWType getRfidRWtype() {
@@ -199,18 +190,18 @@ emRWType getRfidRWtype() {
 	//rfidACsetOn();                  // включаем генератор 125кГц и компаратор
 	//start gap 30
 	sendOpT5557(0b11);  //переходим в режим чтения Vendor ID
-	if (!T5557_blockRead(data32)) return Unknown;
+	if (!T5557_blockRead(data32)) return ERROR_READ_1;
 	delay(4);
 	//gap 20
 	sendOpT5557(0b10, data33, 0x0);                               //передаем конфиг регистр
 	delay(4);
 	//start gap 30
 	sendOpT5557(0b11);  //переходим в режим чтения Vendor ID
-	if (!T5557_blockRead(data33)) return Unknown;
-	sendOpT5557(0b0, 0x0, 0);  // send Reset
-	delay(4);
+	if (!T5557_blockRead(data33)) return ERROR_READ_2;
+	sendOpT5557(0b00, 0x0, 0);  // send Reset
+	//delay(4);
 	if (data32 != data33) return Unknown;
-	DEBUG(F(" The rfid RW-key is T5557. Vendor ID is "));
+	DEBUG(F("\nRfid RW-key is T5557. Vendor ID: "));
 	DEBUGLN(data32, HEX);
 	return T5557;
 }
@@ -220,55 +211,47 @@ byte write_em4305(const byte(&data)[8]) {
 }
 
 byte writeRfid(const byte(&data)[8]) {
-	byte i = keyCompare(data);
-	if (i == SAME_KEY) return SAME_KEY;// если коды совпадают, ничего писать не нужно
-	i = getRfidRWtype();  // определяем тип T5557 (T5577) или EM4305
-	switch (i) {
-	case T5557: { 
-		EM_Marine_encode(data, buffer);
-		return write_T5557(buffer);
-	}
-	case EM4305: { return write_em4305(data); }
+	byte type = keyCompare(data);
+	if (type == NOERROR) return KEY_SAME;// если коды совпадают, ничего писать не нужно
+	if (type != KEY_MISMATCH) return type;
+	type = getRfidRWtype();  // определяем тип T5557 (T5577) или EM4305
+	switch (type) {
+	case T5557:
+		return write_T5557(data);
+	case EM4305:
+		return write_em4305(data);
 	}
 	return ERROR_UNKNOWN_KEY;
 }
 
 byte keyCompare(const byte key[8]) {
-	byte buffer[8];
-	byte i = readEM_Marine(buffer/*, 30 * 1000*/);
+	byte i = readEM_Marine(Buffer/*, 30 * 1000*/);
 	if (i == NOERROR) {
-		for (i = 5;; --i) {
-			if (buffer[i] != key[i]) break;
-			if (i == 1) return SAME_KEY;
-		}
+		if(memcmp(Buffer + 1, key + 1, 5)) return KEY_MISMATCH;
 	}
-	else { DEBUGLN(i); }
-	return i;
+	else return i;
+	return NOERROR;
 }
 
-void sendEM_Marine(const byte(&data)[8]) {
-	byte buffer[8];
-	rfid_disable();  // отключаем шим
-	digitalWrite(FreqGen, LOW);
-	//FF:A9:8A:A4:87:78:98:6A //0x0000565A91B831
-	EM_Marine_encode(data, buffer); delay(10);
-	for (byte nibble = 0, i, bitmask; nibble < 10; nibble++) {
-		for (i = 7;i;) {
-			for (bitmask = 128, --i; bitmask; bitmask >>= 1) {
-				if (data[i] & bitmask) {
-					pinMode(FreqGen, INPUT);
-					delayMicroseconds(255);
-					pinMode(FreqGen, OUTPUT);	//high to low
+void sendEM_Marine(const byte(&buf)[8], int count = 1) {
+	byte buffer[8];//FF:A9:8A:A4:87:78:98:6A //0x0000565A91B831
+	EM_Marine_encode(buf, buffer); 
+	while (count > 0) {
+		for (int i = 7; i >= 0; --i) {
+			for (byte bitmask = 128, data = buf[i]; bitmask; bitmask >>= 1) {
+				if (data & bitmask) {
+					rfid_emul_high_impl();
+					delayMicroseconds(250);
+					rfid_emul_low_impl();	//high to low
 				}
 				else {
-					pinMode(FreqGen, OUTPUT);	
-					delayMicroseconds(255);
-					pinMode(FreqGen, INPUT);	//low to high
+					rfid_emul_low_impl();
+					delayMicroseconds(250);
+					rfid_emul_high_impl();	//low to high
 				}
-				delayMicroseconds(255);
+				delayMicroseconds(250);
 			}
-			if (i == 0) break;
 		}
+		rfid_emul_high_impl();
 	}
-	pinMode(FreqGen, INPUT);
 }
