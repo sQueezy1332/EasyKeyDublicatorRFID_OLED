@@ -7,15 +7,21 @@
 #define DEBUG(x, ...)
 #define DEBUGLN(x, ...)
 #endif
+
 //settings
 #define SIZE 8
 #define rfidUsePWD 0    // ключ использует пароль для изменения
 #define rfidPWD 123456  // пароль для ключа
-#define RFID_BIT_PERIOD 64   // Скорость обмена с rfid в kbps
+#define RFID_BIT_PERIOD 64   // Скорость обмена с rfid 2 kbps
 #define RFID_HALFBIT (1000 / (125 / (RFID_BIT_PERIOD / 2.f)))
-//#define COMP_REG (ACSR & _BV(ACO))
+//#define COMP_REG (ACSR & _BV(ACO))ss
 #define COMP_PIN (2)
+#ifdef __LGT8F__
+#include "fastio_digital.h"
+#define COMP_REG (!fastioRead(D2))
+#else
 #define COMP_REG (!digitalRead(COMP_PIN))
+#endif // __LGT8F__
 #define DELAY_COMP (RFID_HALFBIT / 8)
 #define TIMER2MASK (_BV(COM2A0) | _BV(WGM21) | _BV(WGM20))
 #define uS micros()
@@ -37,12 +43,13 @@
 #define EEPROM_KEY_COUNT (E2END)
 #define EEPROM_KEY_INDEX (E2END - 1)
 
+
 enum key_type : uint8_t {
 	keyUnknown,
 	keyDallas,
 	keyCyfral,
 	keyMetacom,
-	keyEM_Marine
+	keyEM_Marine,
 };  // тип оригинального ключа
 
 enum myMode : uint8_t {
@@ -52,8 +59,10 @@ enum myMode : uint8_t {
 	md_blueMode
 };  // режим работы копировальщика
 
-enum emRWType : uint8_t {
-	Unknown,
+enum emRWType : char {
+	ERROR_READ_1 = -1,
+	ERROR_READ_2 = -2,
+	Unknown = 0,
 	TM2004,
 	RW1990_1,
 	RW1990_2,
@@ -64,9 +73,9 @@ enum emRWType : uint8_t {
 
 enum error_t : uint8_t {
 	NOERROR = 0,
-	
 	KEY_SAVED,
-	SAME_KEY,
+	KEY_SAME,
+	KEY_MISMATCH,
 	ERROR_READ,
 	ERROR_COPY,
 	ERROR_UNKNOWN_KEY,
@@ -77,6 +86,3 @@ enum error_t : uint8_t {
 	ERROR_RFID_PARITY_COL, //E
 	ERROR_RFID_STOP_BIT, //F
 };
-
-byte keyType;
-myMode Mode = md_empty;
