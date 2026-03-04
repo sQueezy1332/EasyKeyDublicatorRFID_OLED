@@ -9,7 +9,6 @@
 #include <GyverOLED.h>
 #include "DualFunctionButton.h"	
 #include "defines.h"
-#include "cyfral.h"
 #include "dallas.h"
 #include "em_marine.h"
 
@@ -26,8 +25,8 @@ DualFunctionButton BtnErase(BtnOKPin, 5000, INPUT_PULLUP);
 DualFunctionButton BtnUp(BtnUpPin, 2000, INPUT_PULLUP);
 DualFunctionButton BtnDown(BtnDownPin, 2000, INPUT_PULLUP);
 
-extern void rfid_emul_high_impl() { pinMode(FreqGen, INPUT); };
-extern void rfid_emul_low_impl() { pinMode(FreqGen, OUTPUT); };
+void rfid_emul_high_impl() { pinMode(FreqGen, INPUT); };
+void rfid_emul_low_impl() { pinMode(FreqGen, OUTPUT); };
 //Encoder enc1(CLK, DT, BtnPin);
 
 //OneWireSlave iBtnEmul(iBtnEmulPin);  //Эмулятор iButton для BlueMode
@@ -210,3 +209,4 @@ void EEPROM_get_key(byte(&buf)[8]) {
 	digitalWrite(G_Led, LOW);
 	digitalWrite(B_Led, LOW);
 }*/
+
