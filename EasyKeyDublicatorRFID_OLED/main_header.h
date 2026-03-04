@@ -7,12 +7,13 @@
 #define USE_MICRO_WIRE
 #include <microWire.h>
 #include <GyverOLED.h>
-
 #include "DualFunctionButton.h"	
 #include "defines.h"
 #include "cyfral.h"
 #include "dallas.h"
 #include "em_marine.h"
+
+
 //OLED OLED(SDA, SCL);
 
 GyverOLED <SSH1106_128x64, OLED_NO_BUFFER, OLED_I2C> OLED;
@@ -25,20 +26,25 @@ DualFunctionButton BtnErase(BtnOKPin, 5000, INPUT_PULLUP);
 DualFunctionButton BtnUp(BtnUpPin, 2000, INPUT_PULLUP);
 DualFunctionButton BtnDown(BtnDownPin, 2000, INPUT_PULLUP);
 
+extern void rfid_emul_high_impl() { pinMode(FreqGen, INPUT); };
+extern void rfid_emul_low_impl() { pinMode(FreqGen, OUTPUT); };
 //Encoder enc1(CLK, DT, BtnPin);
 
 //OneWireSlave iBtnEmul(iBtnEmulPin);  //Эмулятор iButton для BlueMode
 const byte MAX_KEYS = EEPROM.length() / 8 - 1;
 byte EEPROM_key_count;               // количество ключей 0..MAX_KEYS, хранящихся в EEPROM
 byte EEPROM_key_index = 0;           // 1..EEPROM_key_count номер последнего записанного в EEPROM ключа
-byte buffer[8];                        // временный буфер
+byte Buffer[8];						// временный буфер
 byte keyID[8];                       // ID ключа для записи
+
+byte keyType;
+myMode Mode = md_empty;
 //byte halfT;                          // полупериод для метаком
 //byte rom[8]{ 0x1, 0xBE, 0x40, 0x11, 0x5A, 0x36, 0x0, 0xE1 };
 
-bool comparator() {
-	static byte prev_state = COMP_REG;
-	const byte state = COMP_REG;
+bool op_amp() {
+	static auto prev_state = COMP_REG;
+	const auto state = COMP_REG;
 	if (state != prev_state) {
 		for (auto time = uS; COMP_REG == state; ) {
 			if (uS - time > DELAY_COMP) {
@@ -49,8 +55,26 @@ bool comparator() {
 	return prev_state;
 }
 
+void rfid_pwm_disable() {
+	TCCR2A = 0; pinMode(FreqGen, INPUT); /*digitalWrite(FreqGen, LOW);*/// Оключить ШИМ COM2A(pin 11)
+}
+
+void rfid_pwm_enable() {
+	pinMode(FreqGen, OUTPUT); TCCR2A = TIMER2MASK; //Toggle on Compare Match on COM2A (pin 11) и счет таймера2 до OCR2A
+}
+
+void rfid_init() { //включаем генератор 125кГц
+	TCCR2B = _BV(WGM22) | _BV(CS20);		 // mode 7: Fast PWM //divider 1 (no prescaling)
+	OCR2A = (F_CPU / 1 / 125000 / 2) - 1;
+	// включаем компаратор
+	ADCSRB &= ~_BV(ACME);  // отключаем мультиплексор AC
+	ACSR &= ~_BV(ACBG);    // отключаем от входа Ain0 1.1V
+	rfid_pwm_enable();
+	delay(10);       //13 мс длятся переходные процессы детектора
+}
+
 byte indxKeyInROM(const byte(&buf)[8]) {  //возвращает индекс или ноль если нет в ROM
-	uint16_t idx = 0;
+	size_t idx = 0;
 	for (byte count = 1, i; count <= EEPROM_key_count; count++, idx += 8) {  // ищем ключ в eeprom.
 		for (i = 0;;) {
 			if (EEPROM[idx + i] != buf[i]) break;
@@ -60,14 +84,31 @@ byte indxKeyInROM(const byte(&buf)[8]) {  //возвращает индекс и
 	return 0;
 }
 
-key_type getKeyType(const byte(&buf)[8]) {
-	if (buf[0] == 0x1) return keyDallas;  // это ключ формата dallas
-	switch (buf[0] >> 4) {
-	case 0x1: return keyCyfral;
-	case 0x2: return keyMetacom;
-	case 0xF: return keyEM_Marine;
+key_type getKeyType(const byte* buf) {
+	switch (buf[0]) {
+	case 0x1:return keyDallas;
+	case 0x2: return keyCyfral;
+	case 0x3: return keyMetacom;
+	case 0xFF: return keyEM_Marine;
 	}
 	return keyUnknown;
+}
+
+template <bool big_endian, char separ> void bytes_to_str(char* ptr, const byte* buf, byte data_size) {
+	if (data_size == 0) return;
+	byte i, num, shift, nibble; char inc;
+	if (big_endian) { i = 0; --data_size; inc = 1; }
+	else { i = data_size - 1; data_size = 0; inc = -1; }
+	for (;; i += inc) {
+		for (shift = 4, num = buf[i];; shift = 0) {
+			nibble = (num >> shift) & 0xF;
+			*ptr++ = nibble < 10 ? nibble ^ 0x30 : nibble + ('A' - 10);
+			if (shift == 0) break;
+		}
+		if (i == data_size) break;
+		if (separ) { *ptr++ = separ; }
+	}
+	*ptr = '\0';
 }
 
 void OLED_printKey(const byte(&buf)[8], bool keyIndex = false) {
@@ -85,19 +126,24 @@ void OLED_printKey(const byte(&buf)[8], bool keyIndex = false) {
 		}
 	}
 	//OLED.clrScr(); OLED.print(str, 0, 0); DEBUGLN(str);
-	str.reserve(3 * 8); 
-	{	char* c = str.begin();
+		str.reserve(3 * 8); 
+		bytes_to_str<true, ':'>(str.begin(), buf, keyType == keyEM_Marine ? 6 : 8);
+			/*char* const c = str.begin();
 			for (byte temp, i = (keyType == keyEM_Marine) ? 5 : 7;; --i, c+=3) {
 				if (i == 0 && keyType == keyEM_Marine) break;
+				
+				
 				temp = buf[i];
 				if ((temp & 0xF0) == 0) *c = '0';
 				utoa(temp, &c[(temp & 0xF0) ? 0 : 1], HEX);
-				if (i != 0) c[2] = ':'; else break;
-			}
-	}
-	if ((keyType == keyDallas) && (ibutton.crc8(buf, 7) != buf[7])) { str += "\t !CRC"; }
-		//OLED.print(str, 0, 12); DEBUGLN(str);
-	str = "Type ";
+				if (i == 0) break; 
+				c[2] = ':';
+			}*/
+	byte ex_crc = ibutton.crc8(buf, 7);
+	if (keyType == keyDallas && ex_crc != buf[7]) { str += F("\t !=CRC ");  str += String(ex_crc, HEX);  }
+		//OLED.print(str, 0, 12); 
+	DEBUGLN(str);
+	str = F("Type ");
 	switch (keyType) {
 	case keyDallas: str += F("Dallas"); break;
 	case keyCyfral: str += F("Cyfral"); break;
@@ -118,8 +164,8 @@ void OLEDprint_error(byte err = 0) {
 		str = F("ERROR_");
 		switch (err) {
 		case ERROR_COPY: str += F("COPY");  break;
+		case KEY_SAME: str += F("SAME"); str += F("_KEY"); break;
 		case ERROR_UNKNOWN_KEY: str += F("UNKNOWN"); str += F("_KEY"); break;
-		case SAME_KEY: str += F("SAME"); str += F("_KEY"); break;
 		case ERROR_RFID_TIMEOUT: str += F("RFID_TIMEOUT"); break;
 		case ERROR_RFID_HEADER: str += F("RFID_HEADER"); break;
 		case ERROR_RFID_PARITY_ROW: str += F("PARITY_ROW"); break;
@@ -142,7 +188,7 @@ bool EPPROM_AddKey(const byte(&buf)[8]) {
 		EEPROM.update(EEPROM_KEY_INDEX, EEPROM_key_index);
 		return false;
 	}DEBUGLN(F("Adding to EEPROM\t"));
-	for (byte i = 0;;) { DEBUGHEX(buf[i]); if (++i < 8)DEBUG(':'); else break; }DEBUGLN();
+	for (byte i = 0;;) { DEBUG(buf[i], HEX); if (++i < 8)DEBUG(':'); else break; }DEBUGLN();
 	if (EEPROM_key_count < MAX_KEYS) EEPROM_key_index = ++EEPROM_key_count;
 	else EEPROM_key_index++; //EEPROM_key_count == MAX_KEYS
 	if (EEPROM_key_index > EEPROM_key_count) EEPROM_key_index = 1;
