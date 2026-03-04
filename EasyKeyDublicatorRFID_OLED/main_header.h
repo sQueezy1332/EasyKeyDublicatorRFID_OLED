@@ -9,9 +9,9 @@
 #include <GyverOLED.h>
 #include "DualFunctionButton.h"	
 #include "defines.h"
+#include <CyfralMetakom.h>
 #include "dallas.h"
 #include "em_marine.h"
-
 
 //OLED OLED(SDA, SCL);
 
@@ -25,8 +25,8 @@ DualFunctionButton BtnErase(BtnOKPin, 5000, INPUT_PULLUP);
 DualFunctionButton BtnUp(BtnUpPin, 2000, INPUT_PULLUP);
 DualFunctionButton BtnDown(BtnDownPin, 2000, INPUT_PULLUP);
 
-void rfid_emul_high_impl() { pinMode(FreqGen, INPUT); };
-void rfid_emul_low_impl() { pinMode(FreqGen, OUTPUT); };
+extern void rfid_emul_high_impl() { pinMode(FreqGen, INPUT); };
+extern void rfid_emul_low_impl() { pinMode(FreqGen, OUTPUT); };
 //Encoder enc1(CLK, DT, BtnPin);
 
 //OneWireSlave iBtnEmul(iBtnEmulPin);  //Эмулятор iButton для BlueMode
@@ -203,10 +203,45 @@ void EEPROM_get_key(byte(&buf)[8]) {
 	keyType = getKeyType(buf);
 }
 
+uint32_t pulseACompA(bool pulse, byte Average = 80, uint32_t timeOut = 1500) {  // pulse HIGH or LOW
+	bool AcompState;
+	uint32_t tEnd = micros() + timeOut;
+	do {
+		ADCSRA |= (1 << ADSC);
+		while (ADCSRA & (1 << ADSC));  // Wait until the ADSC bit has been cleared
+		if (ADCH > 200) return 0;
+		if (ADCH > Average) AcompState = HIGH;  // читаем флаг компаратора
+		else AcompState = LOW;
+		if (AcompState == pulse) {
+			tEnd = micros() + timeOut;
+			do {
+				ADCSRA |= (1 << ADSC);
+				while (ADCSRA & (1 << ADSC));	// Wait until the ADSC bit has been cleared
+				if (ADCH > Average) AcompState = HIGH;  // читаем флаг компаратора
+				else AcompState = LOW;
+				if (AcompState != pulse) return (uint32_t)(micros() + timeOut - tEnd);
+			} while (micros() < tEnd);
+			return 0;  //таймаут, импульс не вернуся оратно
+		}            // end if
+	} while (micros() < tEnd);
+	return 0;
+}
+void ADCsetOn() {
+	ADMUX = (ADMUX & 0b11110000) | 0b0011 | (1 << ADLAR);                // (1 << REFS0);          // подключаем к AC Линию A3 ,  левое выравние, измерение до Vcc
+	ADCSRB = (ADCSRB & 0b11111000) | (1 << ACME);                        // источник перезапуска ADC FreeRun, включаем мультиплексор AC
+	ADCSRA = (ADCSRA & 0b11111000) | 0b011 | (1 << ADEN) | (1 << ADSC);  // | (1<<ADATE);      // 0b011 делитель скорости ADC, // включаем ADC и запускаем ADC и autotriger ADC
+}
+void ACsetOn() {
+	ACSR |= 1 << ACBG;                      // Подключаем ко входу Ain0 1.1V для Cyfral/Metacom
+	ADCSRA &= ~(1 << ADEN);                 // выключаем ADC
+	ADMUX = (ADMUX & 0b11110000) | 0b0011;  // подключаем к AC Линию A3
+	ADCSRB |= 1 << ACME;                    // включаем мультиплексор AC
+}
+
+
 
 /*void clearLed() {
 	digitalWrite(R_Led, LOW);
 	digitalWrite(G_Led, LOW);
 	digitalWrite(B_Led, LOW);
 }*/
-
