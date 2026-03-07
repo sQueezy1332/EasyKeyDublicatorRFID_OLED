@@ -23,7 +23,10 @@ extern uint8_t BigNumbers[];
 DualFunctionButton BtnOK(BtnOKPin, 2000, INPUT_PULLUP);
 DualFunctionButton BtnErase(BtnOKPin, 5000, INPUT_PULLUP);
 DualFunctionButton BtnUp(BtnUpPin, 2000, INPUT_PULLUP);
-DualFunctionButton BtnDown(BtnDownPin, 2000, INPUT_PULLUP);;
+DualFunctionButton BtnDown(BtnDownPin, 2000, INPUT_PULLUP);
+
+void rfid_emul_high_impl() { pinMode(FreqGen, INPUT); };
+void rfid_emul_low_impl() { pinMode(FreqGen, OUTPUT); };
 //Encoder enc1(CLK, DT, BtnPin);
 
 //OneWireSlave iBtnEmul(iBtnEmulPin);  //Эмулятор iButton для BlueMode
@@ -39,20 +42,21 @@ myMode Mode = md_empty;
 //byte rom[8]{ 0x1, 0xBE, 0x40, 0x11, 0x5A, 0x36, 0x0, 0xE1 };
 
 bool op_amp() {
-	static auto prev_state = COMP_REG;
-	const auto state = COMP_REG;
-	if (state != prev_state) {
-		for (auto time = uS; COMP_REG == state; ) {
-			if (uS - time > DELAY_COMP) {
-				return prev_state = state;
-			}
-		}
+	constexpr bool high = 1, low = 0;
+	static int i = 0;
+	static bool prev_state = COMP_REG;
+	if (!!COMP_REG == high) {
+		if (prev_state == low) {
+			if (i < DELAY_COMP) { i += 4; }
+			else { prev_state = high; }
+		} //else if(prev_state == high)
+	}
+	else {
+		if (i > 0) { i -= 1; }
+		else { prev_state = low; }
 	}
 	return prev_state;
 }
-
-void rfid_emul_high_impl() { pinMode(FreqGen, INPUT); };
-void rfid_emul_low_impl() { pinMode(FreqGen, OUTPUT); }
 
 void rfid_pwm_disable() {
 	TCCR2A = 0; pinMode(FreqGen, INPUT); /*digitalWrite(FreqGen, LOW);*/// Оключить ШИМ COM2A(pin 11)
@@ -66,8 +70,8 @@ void rfid_init() { //включаем генератор 125кГц
 	TCCR2B = _BV(WGM22) | _BV(CS20);		 // mode 7: Fast PWM //divider 1 (no prescaling)
 	OCR2A = (F_CPU / 1 / 125000 / 2) - 1;
 	// включаем компаратор
-	ADCSRB &= ~_BV(ACME);  // отключаем мультиплексор AC
-	ACSR &= ~_BV(ACBG);    // отключаем от входа Ain0 1.1V
+	//ADCSRB &= ~_BV(ACME);  // отключаем мультиплексор AC
+	//ACSR &= ~_BV(ACBG);    // отключаем от входа Ain0 1.1V
 	rfid_pwm_enable();
 	delay(10);       //13 мс длятся переходные процессы детектора
 }
@@ -114,33 +118,35 @@ void OLED_printKey(const byte(&buf)[8], bool keyIndex = false) {
 	String str;
 	if (!keyIndex) {
 		str = "The key "; str += EEPROM_key_index; str += " of "; str += EEPROM_key_count; ;
-	} else {
+	}
+	else {
 		auto index = indxKeyInROM(buf);
 		if (index != 0) {
 			str = "The key "; str += "exists: "; str += index; str += " of "; str += EEPROM_key_count;
 		}
-		else { str = "Hold Btn to save in "; 
-		index = EEPROM_key_index + 1 > MAX_KEYS ? 1 : EEPROM_key_index + 1;
-		str += index;  str += " index";
+		else {
+			str = "Hold Btn to save in ";
+			index = EEPROM_key_index + 1 > MAX_KEYS ? 1 : EEPROM_key_index + 1;
+			str += index;  str += " index";
 		}
 	}
 	//OLED.clrScr(); OLED.print(str, 0, 0); DEBUGLN(str);
-		str.reserve(3 * 8); 
-		bytes_to_str<true, ':'>(str.begin(), buf, keyType == keyEM_Marine ? 6 : 8);
-			/*char* const c = str.begin();
-			for (byte temp, i = (keyType == keyEM_Marine) ? 5 : 7;; --i, c+=3) {
-				if (i == 0 && keyType == keyEM_Marine) break;
-				
-				
-				temp = buf[i];
-				if ((temp & 0xF0) == 0) *c = '0';
-				utoa(temp, &c[(temp & 0xF0) ? 0 : 1], HEX);
-				if (i == 0) break; 
-				c[2] = ':';
-			}*/
+	str.reserve(3 * 8);
+	bytes_to_str<true, ':'>(str.begin(), buf, keyType == keyEM_Marine ? 6 : 8);
+	/*char* const c = str.begin();
+	for (byte temp, i = (keyType == keyEM_Marine) ? 5 : 7;; --i, c+=3) {
+		if (i == 0 && keyType == keyEM_Marine) break;
+
+
+		temp = buf[i];
+		if ((temp & 0xF0) == 0) *c = '0';
+		utoa(temp, &c[(temp & 0xF0) ? 0 : 1], HEX);
+		if (i == 0) break;
+		c[2] = ':';
+	}*/
 	byte ex_crc = ibutton.crc8(buf, 7);
-	if (keyType == keyDallas && ex_crc != buf[7]) { str += F("\t !=CRC ");  str += String(ex_crc, HEX);  }
-		//OLED.print(str, 0, 12); 
+	if (keyType == keyDallas && ex_crc != buf[7]) { str += F("\t !=CRC ");  str += String(ex_crc, HEX); }
+	//OLED.print(str, 0, 12); 
 	DEBUGLN(str);
 	str = F("Type ");
 	switch (keyType) {
@@ -150,15 +156,15 @@ void OLED_printKey(const byte(&buf)[8], bool keyIndex = false) {
 	case keyEM_Marine: str += F("EM_Marine"); break;
 	case keyUnknown: str += F("UNKNOWN"); break;
 	}
-		//OLED.print(str, 0, 24); DEBUGLN(str);
-		//OLED.update();
+	//OLED.print(str, 0, 24); DEBUGLN(str);
+	//OLED.update();
 }
 
 void OLEDprint_error(byte err = 0) {
 	//digitalWrite(R_Led, LOW);
 	String str;
 	//OLED.clrScr(); //,'
-	if(err == NOERROR)str = F("Success");
+	if (err == NOERROR)str = F("Success");
 	else {
 		str = F("ERROR_");
 		switch (err) {
@@ -233,9 +239,10 @@ void ADCsetOn() {
 }
 void ACsetOn() {
 	ACSR |= 1 << ACBG;                      // Подключаем ко входу Ain0 1.1V для Cyfral/Metacom
-	ADCSRA &= ~(1 << ADEN);                 // выключаем ADC
-	ADMUX = (ADMUX & 0b11110000) | 0b0011;  // подключаем к AC Линию A3
-	ADCSRB |= 1 << ACME;                    // включаем мультиплексор AC
+	ADCSRA &= ~_BV(ADEN);                 // выключаем ADC
+	//ADMUX = (ADMUX & 0xF0) | 0b11;  // подключаем к AC Линию A3
+	ADMUX &= 0xF3;
+	ADCSRB |= _BV(ACME);                    // включаем мультиплексор AC
 }
 
 
@@ -245,5 +252,3 @@ void ACsetOn() {
 	digitalWrite(G_Led, LOW);
 	digitalWrite(B_Led, LOW);
 }*/
-
-
