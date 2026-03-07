@@ -6,7 +6,7 @@ extern void rfid_pwm_disable();
 extern void rfid_pwm_enable();
 extern byte Buffer[8];
 
-byte keyCompare(const byte []);
+byte keyCompare(const byte [8]);
 byte column_parity(const byte buf[8]);
 
 byte column_parity(const byte buf[8]) {
@@ -49,12 +49,12 @@ void EM_Marine_decode(const uint8_t data[8], uint8_t buf[8]) {
 
 byte rfid_recvbit(size_t timeOut = RFID_HALFBIT * 4) {
 	const auto firstHalf = op_amp();
-	auto time = uS;
+	auto time = uS; constexpr int timer = RFID_HALFBIT * 1.4;
 	do {
 		const auto secondHalf = op_amp();
 		if (secondHalf != firstHalf) { 
 			for (time = uS; op_amp() == secondHalf;) {
-				if (uS - time > size_t(RFID_HALFBIT * 1.2)) break;  //1.5
+				if (uS - time > timer) break;  //1.5
 			};
 			return secondHalf;
 		}
@@ -64,7 +64,7 @@ byte rfid_recvbit(size_t timeOut = RFID_HALFBIT * 4) {
 
 byte readEM_Marine(byte(&buf)[8]/*, size_t timeout = 64*/) {
 	//auto timestamp = mS;
-	byte bit = NOERROR, i, nibble, bitmask, par, result;
+	byte bit, i, nibble, bitmask, result, par;
 again:
 	//extern void do_something(byte err); do_something(bit);
 	//if (mS - timestamp > timeout) return bit;
@@ -76,7 +76,7 @@ again:
 			goto again;
 		}
 	}
-	for (i = 5; i; --i) {	//10 nibbles of data and 10 parity row bit
+	for (i = 5; i != 0; --i) {	//10 nibbles of data and 10 parity row bit
 		for (result = 0, nibble = 0, par = 0, bitmask = 128; nibble < 10; nibble++) {
 			bit = rfid_recvbit();
 			if (bit) {
