@@ -59,16 +59,24 @@ bool op_amp() {
 }
 
 void rfid_pwm_disable() {
-	TCCR2A = 0; pinMode(FreqGen, INPUT); /*digitalWrite(FreqGen, LOW);*/// Оключить ШИМ COM2A(pin 11)
+	TCCR2A = 0; pinMode(FreqGen, INPUT); /*digitalWrite(FreqGen, LOW);*/
+	//pinMode(3, INPUT);
 }
 
 void rfid_pwm_enable() {
-	pinMode(FreqGen, OUTPUT); TCCR2A = TIMER2MASK; //Toggle on Compare Match on COM2A (pin 11) и счет таймера2 до OCR2A
+	pinMode(FreqGen, OUTPUT); 
+	//pinMode(3, OUTPUT);
+	TCCR2A = ((0b0100 << COM2B0) | _BV(WGM21) | _BV(WGM20)) ;
+	//TCCR2A = ((0b1011 << COM2B0) | _BV(WGM21) | _BV(WGM20));
 }
 
 void rfid_init() { //включаем генератор 125кГц
-	TCCR2B = _BV(WGM22) | _BV(CS20);		 // mode 7: Fast PWM //divider 1 (no prescaling)
-	OCR2A = (F_CPU / 1 / 125000 / 2) - 1;
+	TCCR2B = _BV(WGM22) |
+		_BV(CS20);		 // mode 7: Fast PWM //divider 1 (no prescaling)
+	constexpr byte ocr_val = (F_CPU / 1 / 125000 / 2) - 1; 
+	//constexpr byte ocr_val = 255 / 2; //mode 3 //for F_CPU = 32mhz
+	//OCR2B = 
+		OCR2A = ocr_val;
 	// включаем компаратор
 	//ADCSRB &= ~_BV(ACME);  // отключаем мультиплексор AC
 	//ACSR &= ~_BV(ACBG);    // отключаем от входа Ain0 1.1V
