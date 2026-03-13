@@ -125,14 +125,14 @@ void rfidGap(size_t time) {
 }
 
 void TxBitRfid(bool bit) {
-	//if (bit) { delayMicroseconds(240); } delayMicroseconds(24*8);		//432 == 240 + 192; //192 			
+	//if (bit) { delayMicroseconds(240); } delayMicroseconds(24*8);		//432 == 240 + 192;			
 	 
-	//if (bit) { delayMicroseconds(240); } delayMicroseconds(19*8);		//392 == 240 + 152; //152	//new !!!
+	//if (bit) { delayMicroseconds(240); } delayMicroseconds(19*8);		//392 == 240 + 152;	//new !!!
 	
 	//rfidGap(19 * 8); //152
 
-	if (bit) { delayMicroseconds(30 * 8); } delayMicroseconds(15 * 8);	//360 == 240 + 120; //120
-	rfidGap(30 * 8);				//write gap 32
+	if (bit) { delayMicroseconds(30 * 8); } delayMicroseconds(15 * 8);	//360 == 240 + 120;
+	rfidGap(30 * 8);				//write gap 30
 }
 
 bool T5557_blockRead(uint32_t& buf) {
@@ -160,7 +160,7 @@ void sendOpT5557(byte opCode, uint32_t data = 0, byte addr = 1, byte lockBit = 0
 			TxBitRfid(data & bitmask); 
 		}
 	}
-	for (byte bitmask = _BV(4 -1); bitmask; bitmask >>= 1) { 
+	for (byte bitmask = 0b100; bitmask; bitmask >>= 1) { 
 		TxBitRfid(addr & bitmask);
 	} 
 	write_indication();
@@ -169,7 +169,7 @@ void sendOpT5557(byte opCode, uint32_t data = 0, byte addr = 1, byte lockBit = 0
 
 int write_T5557(const byte data[8]) {
 	EM_Marine_encode(data, Buffer);
-	delay(6);
+	delay(4);	//if (opCode == 0) return
 	//start gap 30	//moved
 	sendOpT5557(0b10, ((uint32_t*)Buffer)[1], 0x1);		//передаем 32 бита ключа в block ones
 	//delay(6); //moved
@@ -214,24 +214,26 @@ int write_em4305(const byte(&data)[8]) {
 
 int writeRfid(const byte(&data)[8]) {
 	int type = keyCompare(data);
-	if (type != KEY_MISMATCH) return type;
-	if (type == NOERROR) return KEY_SAME;// если коды совпадают, ничего писать не нужно
-	type = getRfidRWtype();  // определяем тип T5557 (T5577) или EM4305
-	switch (type) {
-	case T5557:
-		return write_T5557(data);
-	case EM4305:
-		return write_em4305(data);
+	if (type == NOERROR)
+		return KEY_SAME;// если коды совпадают, ничего писать не нужно
+	if (type == KEY_MISMATCH) {
+		type = getRfidRWtype();  // определяем тип T5557 (T5577) или EM4305
+		switch (type) {
+		case T5557:
+			return write_T5557(data);
+		case EM4305:
+			return write_em4305(data);
+		}
 	}
 	return type;
 }
 
 int keyCompare(const byte key[8]) {
-	byte i = readEM_Marine(Buffer/*, 30 * 1000*/);
-	if (i == NOERROR) {
-		if(memcmp(Buffer + 1, key + 1, 5)) return KEY_MISMATCH;
-	}
-	else return i;
+	int ret = readEM_Marine(Buffer/*, 30 * 1000*/);
+	if (ret != NOERROR) return ret;
+	for (int i = 1; i < 6; i++) {
+		if(Buffer[i] != key[i]) return KEY_MISMATCH;
+	} 
 	return NOERROR;
 }
 
