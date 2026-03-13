@@ -13,17 +13,25 @@
 #define rfidUsePWD 0    // ключ использует пароль для изменения
 #define rfidPWD 123456  // пароль для ключа
 #define RFID_BIT_PERIOD 64   // Скорость обмена с rfid 2 kbps
-#define RFID_HALFBIT (1000 / (125 / (RFID_BIT_PERIOD / 2.f)))
+#define RFID_HALFBIT (1000 / (125 / (RFID_BIT_PERIOD / 2.0)))
 //#define COMP_REG (ACSR & _BV(ACO))ss
 #define COMP_PIN (2)
 #ifdef __LGT8F__
 #include "fastio_digital.h"
-#define COMP_REG (!fastioRead(D2))
+//#define COMP_REG (!fastioRead(D2))
+//#define COMP_REG (!fastioRead(D2))
+#define COMP_REG (C0SR & _BV(C0O))
 #else
 #define COMP_REG (!digitalRead(COMP_PIN))
 #endif // __LGT8F__
-#define DELAY_COMP (RFID_HALFBIT / 8)
-#define TIMER2MASK (_BV(COM2A0) | _BV(WGM21) | _BV(WGM20))
+#if F_CPU >= 32000000
+#define DELAY_COMP (int)(RFID_HALFBIT / 8)
+#else
+#define DELAY_COMP (int)(RFID_HALFBIT / 16)
+#endif
+
+/*Toggle on Compare Match on COM2A (pin 11) count timer2 until OCR2A //WGM2 mode 7 */
+#define TIMER2MASK (_BV(COM2A0) | _BV(WGM21) | _BV(WGM20)) 
 #define uS micros()
 #define mS millis()
 //pins
@@ -43,8 +51,7 @@
 #define EEPROM_KEY_COUNT (E2END)
 #define EEPROM_KEY_INDEX (E2END - 1)
 
-
-enum key_type : uint8_t {
+enum key_type {
 	keyUnknown,
 	keyDallas,
 	keyCyfral,
@@ -59,26 +66,26 @@ enum myMode : uint8_t {
 	md_blueMode
 };  // режим работы копировальщика
 
-enum emRWType : char {
-	ERROR_READ_1 = -1,
+enum emRWType {
+	ERROR_READ_3 = -3,
 	ERROR_READ_2 = -2,
-	Unknown = 0,
-	TM2004,
-	RW1990_1,
-	RW1990_2,
-	TM01,
-	T5557,
-	EM4305
+	UNKNOWN_TYPE = -1,
+	TM01 =  1001,
+	RW1990_1 = 1991,
+	RW1990_2 = 1992,
+	TM2004 = 2004,
+	EM4305 = 4305,
+	T5557 = 5577,
 };  // тип болванки
 
-enum error_t : uint8_t {
+enum error_t {
 	NOERROR = 0,
-	KEY_SAVED,
+	//KEY_SAVED,
 	KEY_SAME,
 	KEY_MISMATCH,
 	ERROR_READ,
 	ERROR_COPY,
-	ERROR_UNKNOWN_KEY,
+	//ERROR_UNKNOWN_RFID_TYPE,
 	ERROR_RFID_TIMEOUT = 'A', //A
 	ERROR_RFID_COMP_TIMEOUT, //B
 	ERROR_RFID_HEADER, //C
