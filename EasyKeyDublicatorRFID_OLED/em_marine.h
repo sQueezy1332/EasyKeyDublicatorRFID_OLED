@@ -4,9 +4,10 @@ extern void rfid_emul_high_impl();
 extern void rfid_emul_low_impl();
 extern void rfid_pwm_disable();
 extern void rfid_pwm_enable();
+extern void write_indication();
 extern byte Buffer[8];
 
-byte keyCompare(const byte [8]);
+int keyCompare(const byte [8]);
 byte column_parity(const byte buf[8]);
 
 byte column_parity(const byte buf[8]) {
@@ -64,12 +65,12 @@ byte rfid_recvbit(size_t timeOut = RFID_HALFBIT * 4) {
 
 int readEM_Marine(byte(&buf)[8]/*, size_t timeout = 64*/) {
 	//auto timestamp = mS;
-	byte bit, result;
+	byte result;
 again:
 	//extern void do_something(byte err); do_something(bit);
 	//if (mS - timestamp > timeout) return bit;
 	for (int i = 0; i < 9; i++) { //9 ones preambula
-		bit = rfid_recvbit();
+		byte bit = rfid_recvbit();
 		if (bit > 1) return bit;
 		if (bit == 0) { 
 			//bit = ERROR_RFID_HEADER; 
@@ -99,7 +100,7 @@ again:
 	}
 	result = 0;
 	for (byte bitmask = 0b10000; bitmask != 1 /*skip stop bit*/; bitmask >>= 1) {
-		bit = rfid_recvbit();
+		byte bit = rfid_recvbit();
 		if (bit) {
 			if (bit > 1) return bit;
 			result |= bitmask;
@@ -109,7 +110,7 @@ again:
 	byte _par = column_parity(buf);
 	if (result != (_par << 1)) { //also stop bit check
 		//bit = ERROR_RFID_PARITY_COL; 
-		//goto again;
+		goto again;
 		result <<= 3; result |= _par; //readed parity | calc parity
 		buf[0] = result; return NOERROR;
 	}
@@ -124,21 +125,14 @@ void rfidGap(size_t time) {
 }
 
 void TxBitRfid(bool bit) {
-	//if (bit) delayMicroseconds(24 * 8 + 240);//432
-	//delayMicroseconds(24*8);			//192 
-	if (bit) delayMicroseconds(19 * 8 + 240);//392
-	delayMicroseconds(19 * 8); //152
-	rfidGap(19 * 8); //old
+	//if (bit) { delayMicroseconds(240); } delayMicroseconds(24*8);		//432 == 240 + 192; //192 			
+	 
+	//if (bit) { delayMicroseconds(240); } delayMicroseconds(19*8);		//392 == 240 + 152; //152	//new !!!
 	
-	//if (bit) delayMicroseconds(30 * 8);	//240
-	//delayMicroseconds(15 * 8);		//120
-	//rfidGap(32 * 8);				//write gap 32
-}
+	//rfidGap(19 * 8); //152
 
-void TxByteRfid(byte data) {
-	for (byte bitmask = 0; bitmask; bitmask <<= 1) {
-		TxBitRfid(data & bitmask);
-	}
+	if (bit) { delayMicroseconds(30 * 8); } delayMicroseconds(15 * 8);	//360 == 240 + 120; //120
+	rfidGap(30 * 8);				//write gap 32
 }
 
 bool T5557_blockRead(uint32_t& buf) {
@@ -155,67 +149,73 @@ bool T5557_blockRead(uint32_t& buf) {
 }
 
 void sendOpT5557(byte opCode, uint32_t data = 0, byte addr = 1, byte lockBit = 0, uint32_t password = 0) {
-	rfidGap(32 * 8); //30 old
+	rfidGap(30 * 8);		
 	TxBitRfid(opCode >> 1);
 	TxBitRfid(opCode & 1);  // передаем код операции 10
 	if (opCode == 0) return;
 	// password
 	TxBitRfid(lockBit);		// lockbit 0
-	if (data != 0) {
+	if (data) {
 		for (uint32_t bitmask = (1ul << 31); bitmask; bitmask >>= 1) { 
 			TxBitRfid(data & bitmask); 
 		}
 	}
-	for (byte bitmask = _BV(3); bitmask; bitmask >>= 1) { 
+	for (byte bitmask = _BV(4 -1); bitmask; bitmask >>= 1) { 
 		TxBitRfid(addr & bitmask);
-	}
-	delay(4);              // ждем пока пишутся данные
+	} 
+	write_indication();
+	delay(4 + 6);              // ждем пока пишутся данные
 }
 
-byte write_T5557(const byte data[8]) {
+int write_T5557(const byte data[8]) {
 	EM_Marine_encode(data, Buffer);
-	delay(4);
-	//start gap 30
+	delay(6);
+	//start gap 30	//moved
 	sendOpT5557(0b10, ((uint32_t*)Buffer)[1], 0x1);		//передаем 32 бита ключа в block ones
+	//delay(6); //moved
 	sendOpT5557(0b10, ((uint32_t*)Buffer)[0], 0x2);
-	//DEBUG('*');
-	//start gap 30
-	sendOpT5557(0b0);
-	byte err = keyCompare(data);
-	if (err) { DEBUGLN(err); }
+	//delay(6); //moved
+	//start gap 30 //moved
+	sendOpT5557(0b00);
+	return keyCompare(data);
 	//digitalWrite(R_Led, HIGH);
-	return err;
 }
 
 emRWType getRfidRWtype() {
-	uint32_t data32, data33 = 0x148040 | (rfidUsePWD << 4);  //конфиг регистр 0b00000000000101001000000001000000;
+	const uint32_t config = 0x148040 | (rfidUsePWD << 4);  //конфиг регистр 0b00000000000101001000000001000000;
+	uint32_t vendor, vendor2;
 	//rfidACsetOn();                  // включаем генератор 125кГц и компаратор
 	//start gap 30
-	sendOpT5557(0b11);  //переходим в режим чтения Vendor ID
-	if (!T5557_blockRead(data32)) return ERROR_READ_1;
+	sendOpT5557(0b11);		//переходим в режим чтения Vendor ID
+	if (!T5557_blockRead(vendor)) return ERROR_READ_2;
 	delay(4);
-	//gap 20
-	sendOpT5557(0b10, data33, 0x0);                               //передаем конфиг регистр
-	delay(4);
-	//start gap 30
-	sendOpT5557(0b11);  //переходим в режим чтения Vendor ID
-	if (!T5557_blockRead(data33)) return ERROR_READ_2;
-	sendOpT5557(0b00, 0x0, 0);  // send Reset
+	//rfidGap(20 * 8)		//gap 20
+	sendOpT5557(0b10, config, 0x0);                               //передаем конфиг регистр
 	//delay(4);
-	if (data32 != data33) return Unknown;
-	DEBUG(F("\nRfid RW-key is T5557. Vendor ID: "));
-	DEBUGLN(data32, HEX);
-	return T5557;
+	//start gap 30
+	sendOpT5557(0b11);		//переходим в режим чтения Vendor ID
+	if (!T5557_blockRead(vendor2)) return ERROR_READ_3;
+	sendOpT5557(0b00, 0x0, 0);  // send Reset
+	//delay(6);
+	DEBUG(F("\nVendor ID: ")); DEBUG(vendor, HEX);
+	if (vendor == vendor2) {
+		DEBUGLN();
+		return T5557;
+	}
+	DEBUG(F("\tVendor2 ID: ")); DEBUGLN(vendor2, HEX);
+	return UNKNOWN_TYPE;
+	//DEBUGLN(F("\tRfid RW-key is T5557"));
+	
 }
 
-byte write_em4305(const byte(&data)[8]) {
+int write_em4305(const byte(&data)[8]) {
 	return NOERROR;
 }
 
-byte writeRfid(const byte(&data)[8]) {
-	byte type = keyCompare(data);
-	if (type == NOERROR) return KEY_SAME;// если коды совпадают, ничего писать не нужно
+int writeRfid(const byte(&data)[8]) {
+	int type = keyCompare(data);
 	if (type != KEY_MISMATCH) return type;
+	if (type == NOERROR) return KEY_SAME;// если коды совпадают, ничего писать не нужно
 	type = getRfidRWtype();  // определяем тип T5557 (T5577) или EM4305
 	switch (type) {
 	case T5557:
@@ -223,10 +223,10 @@ byte writeRfid(const byte(&data)[8]) {
 	case EM4305:
 		return write_em4305(data);
 	}
-	return ERROR_UNKNOWN_KEY;
+	return type;
 }
 
-byte keyCompare(const byte key[8]) {
+int keyCompare(const byte key[8]) {
 	byte i = readEM_Marine(Buffer/*, 30 * 1000*/);
 	if (i == NOERROR) {
 		if(memcmp(Buffer + 1, key + 1, 5)) return KEY_MISMATCH;
@@ -257,3 +257,9 @@ void sendEM_Marine(const byte(&buf)[8], int count = 1) {
 		rfid_emul_high_impl();
 	}
 }
+
+/*void TxByteRfid(byte data) {
+	for (byte bitmask = 0; bitmask; bitmask <<= 1) {
+		TxBitRfid(data & bitmask);
+	}
+}*/
