@@ -10,7 +10,7 @@
 
 int main(void) {
 	setup();
-	byte error;
+	int error;
 	for (;;) {
 		if (BtnErase.longPress()) {
 			//OLED.print(F("The keys have been deleted"), 0, 0);
@@ -153,3 +153,4 @@ void setup() {
 	//Timer1.attachInterrupt(timerIsr);  // запуск таймера
 	//digitalWrite(Luse_Led, !digitalRead(Luse_Led));
 }
+
