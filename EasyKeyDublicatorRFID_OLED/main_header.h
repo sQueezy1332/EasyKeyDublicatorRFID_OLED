@@ -257,6 +257,46 @@ void ACsetOn() {
 	ADCSRB |= _BV(ACME);                    // включаем мультиплексор AC
 }
 
+void rfid_test() { //550017C56C
+	*reinterpret_cast<uint64_t*>(keyID) = 0x365A1140BEFF;
+	byte key_buf[1][8]{};
+	const byte buf_cap = sizeof key_buf / sizeof key_buf[0];
+	for (int keyIndex = 0;;) {
+		uint32_t timer = millis();
+		while (keyIndex < buf_cap) {
+			if (!readEM_Marine(key_buf[keyIndex])) {
+				if (*(uint32_t*)(key_buf[keyIndex] + 1) == 0) continue;
+				++keyIndex; PINB |= _BV(PB5);
+			}
+		} uint32_t delta = millis() - timer;
+		keyIndex = 0;
+		for (int i = 0; i < buf_cap; i++) {
+			print_key(key_buf[i]);
+		}
+		//Serial.print('\t'); Serial.print(delta);
+		delay(1000);
+		int ret;
+			ret = writeRfid(keyID);
+			switch (ret)
+			{
+			case NOERROR: DEBUGLN("\nSuccess");
+				break;
+			case KEY_SAME: DEBUGLN("\nKEY_SAME");
+				break;
+			case ERROR_RFID_COMP_TIMEOUT: DEBUGLN("\nCOMP_TIMEOUT");
+				continue;
+			case KEY_MISMATCH: DEBUGLN("\nKEY_MISMATCH");
+				continue;
+			case UNKNOWN_TYPE: DEBUGLN("\nUNKNOWN_TYPE");
+				continue;
+			default:
+				DEBUGLN(ret);
+			}
+			delay(3000);
+	}
+
+}
+
 
 
 /*void clearLed() {
@@ -264,3 +304,4 @@ void ACsetOn() {
 	digitalWrite(G_Led, LOW);
 	digitalWrite(B_Led, LOW);
 }*/
+
