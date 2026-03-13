@@ -79,7 +79,7 @@ again:
 	for (int i = 5; i != 0; --i) {	//10 nibbles of data and 10 parity row bit
 		result = 0;
 		for (byte nibble = 0, par = 0, bitmask = 128; nibble < 10; nibble++) {
-			bit = rfid_recvbit();
+			byte bit = rfid_recvbit();
 			if (bit) {
 				if (bit > 1) return bit;
 				par ^= 1;
@@ -97,7 +97,8 @@ again:
 		}
 		buf[i] = result;
 	}
-	for (byte bitmask = 0b10000, result = 0; bitmask != 1 /*skip stop bit*/; bitmask >>= 1) {
+	result = 0;
+	for (byte bitmask = 0b10000; bitmask != 1 /*skip stop bit*/; bitmask >>= 1) {
 		bit = rfid_recvbit();
 		if (bit) {
 			if (bit > 1) return bit;
