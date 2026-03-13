@@ -34,7 +34,7 @@ const byte MAX_KEYS = EEPROM.length() / 8 - 1;
 byte EEPROM_key_count;               // количество ключей 0..MAX_KEYS, хранящихся в EEPROM
 byte EEPROM_key_index = 0;           // 1..EEPROM_key_count номер последнего записанного в EEPROM ключа
 byte Buffer[8];						// временный буфер
-byte keyID[8];                       // ID ключа для записи
+byte keyID[8]{ 0xFF, 0xBE, 0x40, 0x11, 0x5A, 0x36, 0x0, 0xE1};                       // ID ключа для записи
 
 byte keyType;
 myMode Mode = md_empty;
@@ -68,6 +68,10 @@ void rfid_pwm_enable() {
 	//pinMode(3, OUTPUT);
 	TCCR2A = ((0b0100 << COM2B0) | _BV(WGM21) | _BV(WGM20)) ;
 	//TCCR2A = ((0b1011 << COM2B0) | _BV(WGM21) | _BV(WGM20));
+}
+
+void write_indication() {
+	DEBUG('*');
 }
 
 void rfid_init() { //включаем генератор 125кГц
@@ -178,7 +182,7 @@ void OLEDprint_error(byte err = 0) {
 		switch (err) {
 		case ERROR_COPY: str += F("COPY");  break;
 		case KEY_SAME: str += F("SAME"); str += F("_KEY"); break;
-		case ERROR_UNKNOWN_KEY: str += F("UNKNOWN"); str += F("_KEY"); break;
+		//case ERROR_UNKNOWN_RFID_TYPE: str += F("UNKNOWN"); str += F("_KEY"); break;
 		case ERROR_RFID_TIMEOUT: str += F("RFID_TIMEOUT"); break;
 		case ERROR_RFID_HEADER: str += F("RFID_HEADER"); break;
 		case ERROR_RFID_PARITY_ROW: str += F("PARITY_ROW"); break;
