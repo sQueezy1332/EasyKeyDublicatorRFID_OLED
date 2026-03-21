@@ -16,7 +16,6 @@ __ATTR_NORETURN__ void rfid_test() {
 	//*reinterpret_cast<uint64_t*>(keyID) = 0x365A1140BEFF;
 	//pinMode(COMP_PIN, INPUT_PULLUP);
 	pinMode(LED_BUILTIN, OUTPUT);
-	pinMode(D2, OUTPUT);
 	//pinMode(6, INPUT_PULLUP); //comparator invert input 0.1v
 	Serial.begin(256000);
 	Serial.println(__TIMESTAMP__);
@@ -26,6 +25,7 @@ __ATTR_NORETURN__ void rfid_test() {
 #if defined __LGT8F__
 	C0SR = 0; //comparator enable
 	C0XR = _BV(C0OE) | _BV(C0FEN) | 0b00; //comparator output pin D2; filter 32us (dont work)
+	pinMode(2, OUTPUT);
 #else
 	ACSR = 0;
 #endif
