@@ -1,4 +1,6 @@
 #pragma once
+#include <stdint.h>
+#include <stddef.h>
 #define DEBUG_ENABLE
 #ifdef DEBUG_ENABLE
 #define DEBUG(x, ...) Serial.print(x, ##__VA_ARGS__)
@@ -25,7 +27,7 @@
 #define COMP_REG (!digitalRead(COMP_PIN))
 #endif // __LGT8F__
 #if F_CPU >= 32000000
-#define DELAY_COMP (int)(RFID_HALFBIT / 8)
+#define DELAY_COMP (int)(RFID_HALFBIT / 8)	//TODO
 #else
 #define DELAY_COMP (int)(RFID_HALFBIT / 16)
 #endif
@@ -50,6 +52,7 @@
 #define BtnOKPin 10      // Кнопка переключения режима чтение/запись
 #define EEPROM_KEY_COUNT (E2END)
 #define EEPROM_KEY_INDEX (E2END - 1)
+typedef uint8_t byte;
 
 enum key_type {
 	keyUnknown,
@@ -67,10 +70,11 @@ enum myMode : uint8_t {
 };  // режим работы копировальщика
 
 enum emRWType {
+	ERROR_READ_4 = -4,
 	ERROR_READ_3 = -3,
 	ERROR_READ_2 = -2,
 	UNKNOWN_TYPE = -1,
-	TM01 =  1001,
+	TM01 = 1001,
 	RW1990_1 = 1991,
 	RW1990_2 = 1992,
 	TM2004 = 2004,
@@ -80,7 +84,7 @@ enum emRWType {
 
 enum error_t {
 	NOERROR = 0,
-	//KEY_SAVED,
+	KEY_SAVED,
 	KEY_SAME,
 	KEY_MISMATCH,
 	ERROR_READ,
